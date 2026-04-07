@@ -49,6 +49,7 @@ const DocumentTable = ({ documents, onDownload, onToggleFavorite, favorites }: D
               <TableHead className="font-semibold text-foreground">ID</TableHead>
               <TableHead className="font-semibold text-foreground">Documento</TableHead>
               <TableHead className="font-semibold text-foreground hidden md:table-cell">Tipo</TableHead>
+              <TableHead className="font-semibold text-foreground hidden lg:table-cell">Facultad</TableHead>
               <TableHead className="font-semibold text-foreground hidden sm:table-cell">Fecha</TableHead>
               <TableHead className="font-semibold text-foreground">Estado</TableHead>
               <TableHead className="font-semibold text-foreground text-right">Acción</TableHead>
@@ -75,6 +76,9 @@ const DocumentTable = ({ documents, onDownload, onToggleFavorite, favorites }: D
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <Badge variant="secondary" className="font-normal text-xs">{doc.type}</Badge>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    <span className="text-xs text-muted-foreground">{doc.faculty}</span>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm hidden sm:table-cell">{doc.date}</TableCell>
                   <TableCell>
