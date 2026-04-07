@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import LoginScreen from "@/components/LoginScreen";
-import HomePage from "@/components/HomePage";
+import AppLayout from "@/components/AppLayout";
+import SearchPage from "@/pages/SearchPage";
+import FavoritesPage from "@/pages/FavoritesPage";
+import HistoryPage from "@/pages/HistoryPage";
 import { getUser, setUser, logoutUser } from "@/lib/store";
 
 const Index = () => {
@@ -24,7 +28,16 @@ const Index = () => {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
-  return <HomePage user={user} onLogout={handleLogout} />;
+  return (
+    <AppLayout user={user} onLogout={handleLogout}>
+      <Routes>
+        <Route path="/search" element={<SearchPage />} />
+        <Route path="/favorites" element={<FavoritesPage />} />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route path="*" element={<Navigate to="/search" replace />} />
+      </Routes>
+    </AppLayout>
+  );
 };
 
 export default Index;
