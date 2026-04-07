@@ -29,6 +29,7 @@ const MOCK_DOCUMENTS: Document[] = [
 
 const USER_KEY = "docportal_user";
 const HISTORY_KEY = "docportal_history";
+const FAVORITES_KEY = "docportal_favorites";
 
 export function getUser(): string | null {
   return localStorage.getItem(USER_KEY);
@@ -54,6 +55,10 @@ export function searchDocuments(query: string): Document[] {
   );
 }
 
+export function getAllDocuments(): Document[] {
+  return MOCK_DOCUMENTS;
+}
+
 export function getHistory(): HistoryEntry[] {
   const raw = localStorage.getItem(HISTORY_KEY);
   return raw ? JSON.parse(raw) : [];
@@ -67,4 +72,32 @@ export function addHistory(entry: Omit<HistoryEntry, "id" | "timestamp">) {
     timestamp: new Date().toISOString(),
   });
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 50)));
+}
+
+export function getFavorites(): string[] {
+  const raw = localStorage.getItem(FAVORITES_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+export function toggleFavorite(docId: string): boolean {
+  const favs = getFavorites();
+  const index = favs.indexOf(docId);
+  if (index >= 0) {
+    favs.splice(index, 1);
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
+    return false;
+  } else {
+    favs.push(docId);
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
+    return true;
+  }
+}
+
+export function isFavorite(docId: string): boolean {
+  return getFavorites().includes(docId);
+}
+
+export function getFavoriteDocuments(): Document[] {
+  const favIds = getFavorites();
+  return MOCK_DOCUMENTS.filter((d) => favIds.includes(d.id));
 }

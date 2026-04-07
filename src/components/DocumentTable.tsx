@@ -1,16 +1,18 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText } from "lucide-react";
-import { Document } from "@/lib/store";
+import { Download, FileText, Star } from "lucide-react";
+import { Document, isFavorite } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 
 interface DocumentTableProps {
   documents: Document[];
   onDownload: (doc: Document) => void;
+  onToggleFavorite?: (doc: Document) => void;
+  favorites?: string[];
 }
 
-const DocumentTable = ({ documents, onDownload }: DocumentTableProps) => {
+const DocumentTable = ({ documents, onDownload, onToggleFavorite, favorites }: DocumentTableProps) => {
   const { toast } = useToast();
 
   if (documents.length === 0) {
@@ -25,73 +27,76 @@ const DocumentTable = ({ documents, onDownload }: DocumentTableProps) => {
 
   const handleDownload = (doc: Document) => {
     if (doc.status !== "Disponible") {
-      toast({
-        title: "Documento no disponible",
-        description: "Este documento aún está en proceso.",
-        variant: "destructive",
-      });
+      toast({ title: "Documento no disponible", description: "Este documento aún está en proceso.", variant: "destructive" });
       return;
     }
     onDownload(doc);
-    toast({
-      title: "Descarga iniciada",
-      description: `Descargando "${doc.title}"`,
-    });
+    toast({ title: "Descarga iniciada", description: `Descargando "${doc.title}"` });
+  };
+
+  const checkFav = (docId: string) => {
+    if (favorites) return favorites.includes(docId);
+    return isFavorite(docId);
   };
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/50 hover:bg-muted/50">
-            <TableHead className="font-semibold text-foreground">ID</TableHead>
-            <TableHead className="font-semibold text-foreground">Documento</TableHead>
-            <TableHead className="font-semibold text-foreground hidden md:table-cell">Tipo</TableHead>
-            <TableHead className="font-semibold text-foreground hidden sm:table-cell">Fecha</TableHead>
-            <TableHead className="font-semibold text-foreground hidden lg:table-cell">Tamaño</TableHead>
-            <TableHead className="font-semibold text-foreground">Estado</TableHead>
-            <TableHead className="font-semibold text-foreground text-right">Acción</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {documents.map((doc) => (
-            <TableRow key={doc.id} className="hover:bg-muted/30 transition-colors">
-              <TableCell className="font-mono text-sm text-muted-foreground">{doc.id}</TableCell>
-              <TableCell>
-                <div>
-                  <p className="font-medium text-foreground">{doc.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block max-w-xs truncate">{doc.description}</p>
-                </div>
-              </TableCell>
-              <TableCell className="hidden md:table-cell">
-                <Badge variant="secondary" className="font-normal">{doc.type}</Badge>
-              </TableCell>
-              <TableCell className="text-muted-foreground hidden sm:table-cell">{doc.date}</TableCell>
-              <TableCell className="text-muted-foreground hidden lg:table-cell">{doc.size}</TableCell>
-              <TableCell>
-                <Badge
-                  variant={doc.status === "Disponible" ? "default" : "secondary"}
-                  className={doc.status === "Disponible" ? "bg-success text-success-foreground" : ""}
-                >
-                  {doc.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                <Button
-                  size="sm"
-                  variant={doc.status === "Disponible" ? "default" : "secondary"}
-                  onClick={() => handleDownload(doc)}
-                  disabled={doc.status !== "Disponible"}
-                  className="gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Descargar</span>
-                </Button>
-              </TableCell>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead className="font-semibold text-foreground w-10"></TableHead>
+              <TableHead className="font-semibold text-foreground">ID</TableHead>
+              <TableHead className="font-semibold text-foreground">Documento</TableHead>
+              <TableHead className="font-semibold text-foreground hidden md:table-cell">Tipo</TableHead>
+              <TableHead className="font-semibold text-foreground hidden sm:table-cell">Fecha</TableHead>
+              <TableHead className="font-semibold text-foreground">Estado</TableHead>
+              <TableHead className="font-semibold text-foreground text-right">Acción</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {documents.map((doc) => {
+              const fav = checkFav(doc.id);
+              return (
+                <TableRow key={doc.id} className="hover:bg-muted/30 transition-colors">
+                  <TableCell>
+                    <button
+                      onClick={() => onToggleFavorite?.(doc)}
+                      className="p-1 rounded-md hover:bg-muted transition-colors"
+                      aria-label={fav ? "Quitar de favoritos" : "Agregar a favoritos"}
+                    >
+                      <Star className={`w-4 h-4 ${fav ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                    </button>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{doc.id}</TableCell>
+                  <TableCell>
+                    <p className="font-medium text-foreground text-sm">{doc.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block max-w-[200px] truncate">{doc.description}</p>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <Badge variant="secondary" className="font-normal text-xs">{doc.type}</Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm hidden sm:table-cell">{doc.date}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={doc.status === "Disponible" ? "default" : "secondary"}
+                      className={doc.status === "Disponible" ? "bg-success text-success-foreground text-xs" : "text-xs"}
+                    >
+                      {doc.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm" variant={doc.status === "Disponible" ? "default" : "secondary"} onClick={() => handleDownload(doc)} disabled={doc.status !== "Disponible"} className="gap-1.5">
+                      <Download className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Descargar</span>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };
