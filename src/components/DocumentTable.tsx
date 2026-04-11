@@ -2,6 +2,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, FileText, Star } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Document, isFavorite } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 
@@ -10,9 +11,11 @@ interface DocumentTableProps {
   onDownload: (doc: Document) => void;
   onToggleFavorite?: (doc: Document) => void;
   favorites?: string[];
+  selectedIds?: string[];
+  onToggleSelect?: (id: string) => void;
 }
 
-const DocumentTable = ({ documents, onDownload, onToggleFavorite, favorites }: DocumentTableProps) => {
+const DocumentTable = ({ documents, onDownload, onToggleFavorite, favorites, selectedIds = [], onToggleSelect }: DocumentTableProps) => {
   const { toast } = useToast();
 
   if (documents.length === 0) {
@@ -46,6 +49,7 @@ const DocumentTable = ({ documents, onDownload, onToggleFavorite, favorites }: D
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead className="font-semibold text-foreground w-10"></TableHead>
+              <TableHead className="font-semibold text-foreground w-10">Select</TableHead>
               <TableHead className="font-semibold text-foreground">ID</TableHead>
               <TableHead className="font-semibold text-foreground">Documento</TableHead>
               <TableHead className="font-semibold text-foreground hidden md:table-cell">Tipo</TableHead>
@@ -68,6 +72,13 @@ const DocumentTable = ({ documents, onDownload, onToggleFavorite, favorites }: D
                     >
                       <Star className={`w-4 h-4 ${fav ? "fill-primary text-primary" : "text-muted-foreground"}`} />
                     </button>
+                  </TableCell>
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedIds.includes(doc.id)} 
+                      onCheckedChange={() => onToggleSelect?.(doc.id)}
+                      aria-label={`Seleccionar ${doc.title}`}
+                    />
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{doc.id}</TableCell>
                   <TableCell>
