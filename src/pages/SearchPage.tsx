@@ -1,13 +1,21 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import DocumentSearch from "@/components/DocumentSearch";
 import DocumentTable from "@/components/DocumentTable";
-import { searchDocuments, addHistory, toggleFavorite, getFavorites, Document, FACULTIES, DOCUMENT_TYPES } from "@/lib/store";
+import { addHistory, toggleFavorite, getFavorites, Document, FACULTIES, DOCUMENT_TYPES } from "@/lib/store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Filter, X, RefreshCw } from "lucide-react";
+import { Filter, X, Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import { bibliometriaService, Articulo } from "@/lib/bibliometriaService";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from "@/components/ui/pagination";
 
 const SearchPage = () => {
   const [query, setQuery] = useState("");
@@ -16,66 +24,49 @@ const SearchPage = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [favorites, setFavorites] = useState<string[]>(getFavorites());
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const mapArticuloToDocument = (art: Articulo): Document => ({
-    id: art.id || `API-${Math.random().toString(36).substr(2, 9)}`,
+    id: art.id || `DOI-${art.doi || Math.random().toString(36).substr(2, 9)}`,
     title: art.titulo || "Sin título",
     type: "Artículo",
-    faculty: art.origen || "API Externa",
-    date: new Date().toISOString().split('T')[0],
-    size: "N/A",
+    faculty: art.origen || "Carga Manual",
+    date: art.anio ? String(art.anio) : new Date().toISOString().split('T')[0],
+    size: art.doi ? `DOI: ${art.doi}` : "N/A",
     status: "Disponible",
-    description: art.resumen || (art.palabrasClave ? art.palabrasClave.join(", ") : "") || "Sin descripción"
+    description: art.resumen || "Sin descripción"
   });
 
-  const loadDocuments = useCallback(async () => {
+  const loadDocuments = useCallback(async (page: number) => {
     try {
-      const apiArticles = await bibliometriaService.obtenerArticulos();
+      const response = await bibliometriaService.obtenerArticulos(page, 10);
+      const mappedArticles = response.content.map(mapArticuloToDocument);
       
-      // Filtrar artículos de la API
-      const filteredApi = apiArticles.filter(art => {
-        const q = query.toLowerCase();
-        const matchesQuery = !q || 
-          (art.titulo && art.titulo.toLowerCase().includes(q)) ||
-          (art.resumen && art.resumen.toLowerCase().includes(q)) ||
-          (art.origen && art.origen.toLowerCase().includes(q));
-          
-        const matchesFaculty = !faculty || art.origen === faculty;
-        // Los artículos de la API siempre son tipo "Artículo"
-        const matchesType = !docType || docType === "Artículo";
-        
-        return matchesQuery && matchesFaculty && matchesType;
-      });
-
-      const mappedArticles = filteredApi.map(mapArticuloToDocument);
+      // Aplicar filtros locales de UI si es necesario (aunque lo ideal sería filtros en el backend)
+      // Por ahora, recargamos según la página del backend
       setDocuments(mappedArticles);
+      setTotalPages(response.totalPages);
+      setTotalElements(response.totalElements);
     } catch (error) {
       console.error("Error al cargar documentos del backend:", error);
-      setDocuments([]); // No mostrar nada si falla, o podrías dejarlo vacío
+      toast({
+        title: "Error de conexión",
+        description: "No se pudieron recuperar los artículos del servidor.",
+        variant: "destructive",
+      });
     }
-  }, [query, faculty, docType]);
+  }, [toast]);
 
   useEffect(() => {
-    loadDocuments();
-  }, [loadDocuments]);
-
-  // Sincronización automática inicial
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      try {
-        const apiArticles = await bibliometriaService.obtenerArticulos();
-        if (apiArticles.length === 0 && !isSyncing) {
-          handleSync();
-        }
-      } catch (e) {
-        console.error("Error en auto-sync inicial:", e);
-      }
-    }, 1000); // Pequeño delay para permitir que el backend cargue
-    return () => clearTimeout(timer);
-  }, []); // Solo al montar
+    loadDocuments(currentPage);
+  }, [currentPage, loadDocuments]);
 
   const handleSearch = useCallback((q: string) => {
     setQuery(q);
@@ -84,29 +75,39 @@ const SearchPage = () => {
     }
   }, []);
 
-  const handleFacultyChange = (val: string) => {
-    const v = val === "all" ? "" : val;
-    setFaculty(v);
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
   };
 
-  const handleTypeChange = (val: string) => {
-    const v = val === "all" ? "" : val;
-    setDocType(v);
-  };
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
-  const clearFilters = () => {
-    setFaculty("");
-    setDocType("");
-    setQuery("");
-  };
-
-  const handleDownload = useCallback((doc: Document) => {
-    addHistory({ query: doc.id, type: "download", documentTitle: doc.title });
+    setIsUploading(true);
     toast({
-      title: "Descarga iniciada",
-      description: `Iniciando la descarga de: ${doc.title}`,
+      title: "Iniciando carga",
+      description: `Procesando ${files.length} archivo(s)...`,
     });
-  }, [toast]);
+
+    try {
+      const result = await bibliometriaService.cargarArchivos(files);
+      toast({
+        title: "Carga exitosa",
+        description: `Unificados: ${result.unificados.length}. Duplicados eliminados: ${result.eliminados.length}`,
+      });
+      setCurrentPage(0); // Volver a la primera página para ver lo nuevo
+      await loadDocuments(0);
+    } catch (error) {
+      toast({
+        title: "Error al cargar",
+        description: "Hubo un problema al procesar los archivos bibliométricos.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleToggleFavorite = useCallback((doc: Document) => {
     toggleFavorite(doc.id);
@@ -120,107 +121,96 @@ const SearchPage = () => {
   };
 
   const goToSimilarity = () => {
+    // Buscamos el objeto artículo original en la selección
     const selectedArticles = documents.filter(d => selectedIds.includes(d.id));
     navigate("/similarity", { state: { articles: selectedArticles } });
   };
 
-  const handleSync = async () => {
-    setIsSyncing(true);
-    toast({
-      title: "Sincronización iniciada",
-      description: "Descargando artículos de arXiv y Semantic Scholar...",
-    });
-
-    try {
-      const result = await bibliometriaService.descargarArticulos(query || "generative artificial intelligence", 10);
-      toast({
-        title: "Sincronización completada",
-        description: result,
-      });
-      await loadDocuments(); // Recargar después de sincronizar
-    } catch (error) {
-      toast({
-        title: "Error de sincronización",
-        description: "No se pudo conectar con el servicio de Spring Boot. Verifica que esté corriendo.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const hasFilters = faculty || docType || query;
-
   return (
-    <div>
-      <div className="flex justify-between items-start mb-1">
+    <div className="space-y-6">
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileChange} 
+        multiple 
+        accept=".csv,.bib" 
+        className="hidden" 
+      />
+      
+      <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-xl font-bold text-foreground">Buscar Documentos</h2>
-          <p className="text-muted-foreground text-sm">Encuentre y descargue documentos de productividad científica</p>
+          <h2 className="text-2xl font-bold text-foreground">Gestión Bibliométrica</h2>
+          <p className="text-muted-foreground text-sm">Cargue archivos y analice la similitud de los abstracts</p>
         </div>
         <div className="flex gap-2">
-          {selectedIds.length >= 2 && (
+          {selectedIds.length >= 1 && (
             <Button 
               onClick={goToSimilarity}
               className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
             >
-              Comparar ({selectedIds.length})
+              Analizar Similitud ({selectedIds.length})
             </Button>
           )}
           <Button 
-            onClick={handleSync} 
-            disabled={isSyncing}
+            onClick={handleUploadClick} 
+            disabled={isUploading}
             variant="outline"
             className="gap-2"
           >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Sincronizando...' : 'Sincronizar APIs'}
+            <Upload className={`w-4 h-4 ${isUploading ? 'animate-pulse' : ''}`} />
+            {isUploading ? 'Procesando...' : 'Cargar CSV/BibTeX'}
           </Button>
         </div>
       </div>
       
-      <div className="mb-4 mt-5">
+      <div className="mt-4">
         <DocumentSearch onSearch={handleSearch} />
       </div>
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <Filter className="w-4 h-4 text-muted-foreground" />
-        <Select value={faculty || "all"} onValueChange={handleFacultyChange}>
-          <SelectTrigger className="w-[220px] h-10">
-            <SelectValue placeholder="Todas las facultades" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas las facultades</SelectItem>
-            {FACULTIES.map((f) => (
-              <SelectItem key={f} value={f}>{f}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={docType || "all"} onValueChange={handleTypeChange}>
-          <SelectTrigger className="w-[220px] h-10">
-            <SelectValue placeholder="Todos los tipos" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los tipos</SelectItem>
-            {DOCUMENT_TYPES.map((t) => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground">
-            <X className="w-3.5 h-3.5" />
-            Limpiar filtros
-          </Button>
-        )}
-      </div>
+
       <DocumentTable
         documents={documents}
-        onDownload={handleDownload}
+        onDownload={() => {}} // No necesario para este requerimiento
         onToggleFavorite={handleToggleFavorite}
         favorites={favorites}
         selectedIds={selectedIds}
         onToggleSelect={handleToggleSelect}
       />
+
+      {totalPages > 1 && (
+        <div className="py-4 border-t">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <Button 
+                  variant="ghost" 
+                  disabled={currentPage === 0} 
+                  onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Anterior
+                </Button>
+              </PaginationItem>
+              
+              <PaginationItem>
+                <span className="px-4 text-sm text-muted-foreground">
+                  Página {currentPage + 1} de {totalPages} ({totalElements} registros)
+                </span>
+              </PaginationItem>
+
+              <PaginationItem>
+                <Button 
+                  variant="ghost" 
+                  disabled={currentPage === totalPages - 1} 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                  className="gap-1"
+                >
+                  Siguiente <ChevronRight className="h-4 w-4" />
+                </Button>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 };

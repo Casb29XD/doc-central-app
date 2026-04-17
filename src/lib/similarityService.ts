@@ -1,29 +1,25 @@
 import { Articulo } from "./bibliometriaService";
 
-const API_BASE_URL = "http://localhost:8080/api/similitud";
+const API_BASE_URL = "http://localhost:8080/api/bibliometria";
 
-export interface ResultadoSimilitud {
-  score: number;
-  algoritmo: string;
-  pasosExplicacion: string[];
-}
-
-export interface MatrizSimilitud {
-  [key: string]: ResultadoSimilitud[];
+export interface ResultadoComparacion {
+  idArticuloTarget: string;
+  tituloTarget: string;
+  puntajesPorAlgoritmo: { [key: string]: number };
 }
 
 export const similarityService = {
   /**
-   * Envía una lista de artículos para analizar la similitud entre ellos
+   * Envía un artículo base para analizar su similitud contra el resto de la base de datos
    */
-  async analizarSimilitud(articulos: Articulo[]): Promise<MatrizSimilitud> {
+  async analizarSimilitud(articuloBase: Articulo): Promise<ResultadoComparacion[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/analizar`, {
+      const response = await fetch(`${API_BASE_URL}/analizar-similitud`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(articulos),
+        body: JSON.stringify(articuloBase),
       });
 
       if (!response.ok) {
@@ -33,7 +29,7 @@ export const similarityService = {
 
       return await response.json();
     } catch (error) {
-      console.error("Error al llamar a /analizar:", error);
+      console.error("Error al llamar a /analizar-similitud:", error);
       throw error;
     }
   }

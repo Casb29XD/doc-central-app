@@ -5,44 +5,54 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, Brain, Calculator, Info, CheckCircle2 } from "lucide-react";
-import { similarityService, MatrizSimilitud, ResultadoSimilitud } from "@/lib/similarityService";
+import { ArrowLeft, Brain, Calculator, Info, CheckCircle2, User, BookOpen, Fingerprint } from "lucide-react";
+import { similarityService, ResultadoComparacion } from "@/lib/similarityService";
+import { bibliometriaService, AlgoritmoInfo } from "@/lib/bibliometriaService";
 import { useToast } from "@/hooks/use-toast";
 
 const SimilarityPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<MatrizSimilitud | null>(null);
+  const [results, setResults] = useState<ResultadoComparacion[]>([]);
+  const [algoritmos, setAlgoritmos] = useState<AlgoritmoInfo[]>([]);
+  const [baseArticleIndex, setBaseArticleIndex] = useState(0);
   
   const articles = location.state?.articles || [];
 
   useEffect(() => {
-    if (articles.length < 2) {
+    if (articles.length < 1) {
       toast({
         title: "Selección insuficiente",
-        description: "Se necesitan al menos 2 artículos para comparar.",
+        description: "Se necesita al menos 1 artículo para comparar contra la base de datos.",
         variant: "destructive"
       });
       navigate("/");
       return;
     }
 
-    const fetchAnalysis = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        // Asegurar que mapeamos 'description' a 'resumen' para que el backend lo reconozca
-        const mappedArticles = articles.map((art: any) => ({
-          ...art,
-          resumen: art.resumen || art.description // Intentar ambos por si acaso
-        }));
-        const data = await similarityService.analizarSimilitud(mappedArticles);
-        setResults(data);
+        const algos = await bibliometriaService.obtenerAlgoritmos();
+        setAlgoritmos(algos);
+
+        const baseArt = articles[baseArticleIndex];
+        // Mapeamos para asegurar que el backend reciba los campos correctos
+        const baseArticleMapped = {
+          titulo: baseArt.title,
+          resumen: baseArt.description, // En SearchPage usamos description para el resumen
+          doi: baseArt.size?.split(": ")[1] || ""
+        };
+
+        const comparisons = await similarityService.analizarSimilitud(baseArticleMapped as any);
+        setResults(comparisons);
       } catch (error) {
         toast({
           title: "Error en el análisis",
-          description: "No se pudo completar el análisis de similitud.",
+          description: "No se pudo conectar con el motor de algoritmos.",
           variant: "destructive"
         });
       } finally {
@@ -50,16 +60,18 @@ const SimilarityPage = () => {
       }
     };
 
-    fetchAnalysis();
-  }, [articles, navigate, toast]);
+    fetchData();
+  }, [articles, baseArticleIndex, navigate, toast]);
 
   const getScoreColor = (score: number) => {
-    if (score > 0.8) return "text-success font-bold";
-    if (score > 0.5) return "text-primary font-semibold";
+    if (score > 0.8) return "text-green-600 font-bold";
+    if (score > 0.5) return "text-blue-600 font-semibold";
     return "text-muted-foreground";
   };
 
   const formatScore = (score: number) => (score * 100).toFixed(1) + "%";
+
+  const baseArt = articles[baseArticleIndex];
 
   return (
     <div className="container mx-auto py-6 space-y-8 animate-in fade-in duration-500">
@@ -68,110 +80,107 @@ const SimilarityPage = () => {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Análisis de Similitud Textual</h1>
-          <p className="text-muted-foreground">Comparación algorítmica de abstracts y contenido científico</p>
+          <h1 className="text-3xl font-bold tracking-tight">Análisis de Similitud Semántica</h1>
+          <p className="text-muted-foreground">Motor de comparación basado en algoritmos clásicos e Inteligencia Artificial</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {articles.map((art: any, idx: number) => (
-          <Card key={art.id} className="border-l-4 border-l-primary">
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <Badge variant="outline">Documento {idx + 1}</Badge>
-                <span className="text-xs text-muted-foreground font-mono">{art.id}</span>
-              </div>
-              <CardTitle className="text-lg line-clamp-1">{art.title}</CardTitle>
-              <CardDescription className="line-clamp-2 italic">
-                {art.description}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        ))}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Fingerprint className="w-5 h-5 text-primary" />
+          Artículo Base (Seleccionado)
+        </h2>
+        <Card className="border-l-4 border-l-primary bg-primary/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xl">{baseArt?.title}</CardTitle>
+            <div className="flex flex-wrap gap-4 mt-2">
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <BookOpen className="w-4 h-4" /> {baseArt?.faculty}
+              </span>
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground font-mono">
+                <Info className="w-4 h-4" /> {baseArt?.size}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground italic line-clamp-3">
+              "{baseArt?.description}"
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {loading ? (
-        <Card className="p-12">
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-lg font-medium animate-pulse">Analizando algoritmos clásicos e IA...</p>
-            <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Estamos calculando distancias de edición, vectores estadísticos y embeddings semánticos.
-            </p>
-          </div>
-        </Card>
-      ) : results && (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calculator className="w-5 h-5 text-primary" />
-                Resultados Comparativos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Algoritmo</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Puntaje de Similitud</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {results[Object.keys(results)[0]]?.map((res, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="font-medium">{res.algoritmo}</TableCell>
-                      <TableCell>
-                        <Badge variant={res.algoritmo.startsWith("IA") ? "default" : "secondary"}>
-                          {res.algoritmo.startsWith("IA") ? "Inteligencia Artificial" : "Clásico"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className={`text-right ${getScoreColor(res.score)}`}>
-                        {formatScore(res.score)}
-                      </TableCell>
+        <div className="flex flex-col items-center justify-center p-20 space-y-4 border rounded-xl border-dashed">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="font-medium">Calculando métricas de distancia y embeddings...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calculator className="w-5 h-5 text-primary" />
+                  Resultados de Similitud contra el Repositorio
+                </CardTitle>
+                <CardDescription>
+                  Se comparó el abstract seleccionado contra todos los documentos unificados.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Documento Comparado</TableHead>
+                      {algoritmos.map(algo => (
+                        <TableHead key={algo.nombre} className="text-center text-[10px] uppercase tracking-tighter">
+                          {algo.nombre.split(" ")[0]}
+                        </TableHead>
+                      ))}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {results.length > 0 ? results.map((res, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="max-w-[150px] truncate font-medium text-xs">
+                          {res.tituloTarget}
+                        </TableCell>
+                        {algoritmos.map(algo => (
+                          <TableCell key={algo.nombre} className={`text-center text-xs ${getScoreColor(res.puntajesPorAlgoritmo[algo.nombre] || 0)}`}>
+                            {formatScore(res.puntajesPorAlgoritmo[algo.nombre] || 0)}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    )) : (
+                      <TableRow>
+                        <TableCell colSpan={algoritmos.length + 1} className="text-center py-10 text-muted-foreground">
+                          No hay otros documentos en la base de datos para comparar.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
 
-          <div className="grid grid-cols-1 gap-6">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Info className="w-6 h-6 text-primary" />
-              Explicación Matemática Paso a Paso
-            </h2>
-            
-            <Accordion type="single" collapsible className="w-full space-y-4">
-              {results[Object.keys(results)[0]]?.map((res, idx) => (
-                <AccordionItem key={idx} value={`item-${idx}`} className="border rounded-lg bg-card px-4">
-                  <AccordionTrigger className="hover:no-underline py-4">
-                    <div className="flex items-center gap-3">
-                      {res.algoritmo.startsWith("IA") ? (
-                        <Brain className="w-5 h-5 text-purple-500" />
-                      ) : (
-                        <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      )}
-                      <span className="font-semibold">{res.algoritmo}</span>
+          <div className="space-y-6">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <Info className="w-5 h-5 text-primary" />
+              Glosario de Algoritmos
+            </h3>
+            <Accordion type="single" collapsible className="w-full space-y-3">
+              {algoritmos.map((algo, idx) => (
+                <AccordionItem key={idx} value={`item-${idx}`} className="border rounded-lg bg-card px-4 border-primary/10">
+                  <AccordionTrigger className="hover:no-underline py-3">
+                    <div className="flex items-center gap-2">
+                      {algo.nombre.includes("IA") ? <Brain className="w-4 h-4 text-purple-500" /> : <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                      <span className="text-sm font-semibold">{algo.nombre}</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="pb-6">
-                    <div className="space-y-4 pt-2">
-                      <p className="text-sm text-muted-foreground">
-                        A continuación se detalla el funcionamiento interno del algoritmo para estos documentos:
-                      </p>
-                      <ul className="space-y-3">
-                        {res.pasosExplicacion.map((paso, pIdx) => (
-                          <li key={pIdx} className="flex gap-4 items-start">
-                            <span className="flex-none w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                              {pIdx + 1}
-                            </span>
-                            <span className="text-sm leading-relaxed">{paso}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                  <AccordionContent className="pb-4 text-xs text-muted-foreground leading-relaxed">
+                    {algo.explicacion}
                   </AccordionContent>
                 </AccordionItem>
               ))}
