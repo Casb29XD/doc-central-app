@@ -49,9 +49,20 @@ const SearchPage = () => {
       const response = await bibliometriaService.obtenerArticulos(page, 10);
       const mappedArticles = response.content.map(mapArticuloToDocument);
       
-      // Aplicar filtros locales de UI si es necesario (aunque lo ideal sería filtros en el backend)
-      // Por ahora, recargamos según la página del backend
-      setDocuments(mappedArticles);
+      // Filtrado local según la búsqueda de la interfaz
+      const filtered = mappedArticles.filter(doc => {
+        const q = query.toLowerCase();
+        const matchesQuery = !q || 
+          doc.title.toLowerCase().includes(q) || 
+          doc.description.toLowerCase().includes(q);
+          
+        const matchesFaculty = !faculty || doc.faculty === faculty;
+        const matchesType = !docType || doc.type === docType;
+        
+        return matchesQuery && matchesFaculty && matchesType;
+      });
+
+      setDocuments(filtered);
       setTotalPages(response.totalPages);
       setTotalElements(response.totalElements);
     } catch (error) {
