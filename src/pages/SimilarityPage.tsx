@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, Brain, Calculator, Info, CheckCircle2, User, BookOpen, Fingerprint } from "lucide-react";
+import { ArrowLeft, Brain, Calculator, Info, CheckCircle2, BookOpen, Fingerprint, Activity, Code, FunctionSquare } from "lucide-react";
 import { similarityService, ResultadoComparacion } from "@/lib/similarityService";
 import { bibliometriaService, AlgoritmoInfo } from "@/lib/bibliometriaService";
 import { useToast } from "@/hooks/use-toast";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const SimilarityPage = () => {
   const location = useLocation();
@@ -40,10 +41,9 @@ const SimilarityPage = () => {
         setAlgoritmos(algos);
 
         const baseArt = articles[baseArticleIndex];
-        // Mapeamos para asegurar que el backend reciba los campos correctos
         const baseArticleMapped = {
           titulo: baseArt.title,
-          resumen: baseArt.description, // En SearchPage usamos description para el resumen
+          resumen: baseArt.description,
           doi: baseArt.size?.split(": ")[1] || ""
         };
 
@@ -71,6 +71,24 @@ const SimilarityPage = () => {
 
   const formatScore = (score: number) => (score * 100).toFixed(1) + "%";
 
+  // Preparamos datos para la gráfica buscando el mejor artículo comparado
+  const topMatch = useMemo(() => {
+    if (results.length === 0) return null;
+    return results.reduce((prev, current) => {
+      const sumA = Object.values(prev.puntajesPorAlgoritmo).reduce((a, b) => a + b, 0);
+      const sumB = Object.values(current.puntajesPorAlgoritmo).reduce((a, b) => a + b, 0);
+      return sumA > sumB ? prev : current;
+    });
+  }, [results]);
+
+  const chartData = useMemo(() => {
+    if (!topMatch) return [];
+    return algoritmos.map(algo => ({
+      name: algo.nombre.split(" ")[0] || "AI",
+      Similitud: parseFloat(((topMatch.puntajesPorAlgoritmo[algo.nombre] || 0) * 100).toFixed(1))
+    }));
+  }, [topMatch, algoritmos]);
+
   const baseArt = articles[baseArticleIndex];
 
   return (
@@ -81,7 +99,7 @@ const SimilarityPage = () => {
         </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Análisis de Similitud Semántica</h1>
-          <p className="text-muted-foreground">Motor de comparación basado en algoritmos clásicos e Inteligencia Artificial</p>
+          <p className="text-muted-foreground">Requerimiento 2: Análisis Algorítmico y Matemático</p>
         </div>
       </div>
 
@@ -116,77 +134,149 @@ const SimilarityPage = () => {
           <p className="font-medium">Calculando métricas de distancia y embeddings...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
+        <Tabs defaultValue="datos" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+            <TabsTrigger value="datos" className="flex gap-2"><Calculator className="w-4 h-4" /> Tabla de Resultados</TabsTrigger>
+            <TabsTrigger value="fundamentos" className="flex gap-2"><Activity className="w-4 h-4" /> Fórmulas y Gráficas</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="datos" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calculator className="w-5 h-5 text-primary" />
-                  Resultados de Similitud contra el Repositorio
-                </CardTitle>
+                <CardTitle>Comparamos tu artículo contra {results.length} documentos únicos</CardTitle>
                 <CardDescription>
-                  Se comparó el abstract seleccionado contra todos los documentos unificados.
+                  Se aplican matemáticas de bolsa de palabras e inteligencia artificial para hallar plagios/redundancias.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Documento Comparado</TableHead>
-                      {algoritmos.map(algo => (
-                        <TableHead key={algo.nombre} className="text-center text-[10px] uppercase tracking-tighter">
-                          {algo.nombre.split(" ")[0]}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {results.length > 0 ? results.map((res, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="max-w-[150px] truncate font-medium text-xs">
-                          {res.tituloTarget}
-                        </TableCell>
+                <div className="overflow-x-auto rounded-md border">
+                  <Table>
+                    <TableHeader className="bg-muted">
+                      <TableRow>
+                        <TableHead className="py-4">Veredicto y Obra Contrastada</TableHead>
                         {algoritmos.map(algo => (
-                          <TableCell key={algo.nombre} className={`text-center text-xs ${getScoreColor(res.puntajesPorAlgoritmo[algo.nombre] || 0)}`}>
-                            {formatScore(res.puntajesPorAlgoritmo[algo.nombre] || 0)}
-                          </TableCell>
+                          <TableHead key={algo.nombre} className="text-center font-bold px-4 py-4 min-w-[120px]">
+                            {algo.nombre}
+                          </TableHead>
                         ))}
                       </TableRow>
-                    )) : (
-                      <TableRow>
-                        <TableCell colSpan={algoritmos.length + 1} className="text-center py-10 text-muted-foreground">
-                          No hay otros documentos en la base de datos para comparar.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {results.length > 0 ? results.map((res, idx) => (
+                        <TableRow key={idx} className="hover:bg-muted/50 transition-colors">
+                          <TableCell className="max-w-[200px] font-medium leading-relaxed">
+                            {res.tituloTarget}
+                          </TableCell>
+                          {algoritmos.map(algo => (
+                            <TableCell key={algo.nombre} className={`text-center text-sm ${getScoreColor(res.puntajesPorAlgoritmo[algo.nombre] || 0)}`}>
+                              {formatScore(res.puntajesPorAlgoritmo[algo.nombre] || 0)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      )) : (
+                        <TableRow>
+                          <TableCell colSpan={algoritmos.length + 1} className="text-center py-10 text-muted-foreground">
+                            No hay suficientes documentos en la BD asíncrona para comparar tu artículo.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
-          </div>
+          </TabsContent>
 
-          <div className="space-y-6">
-            <h3 className="text-xl font-bold flex items-center gap-2">
-              <Info className="w-5 h-5 text-primary" />
-              Glosario de Algoritmos
-            </h3>
-            <Accordion type="single" collapsible className="w-full space-y-3">
-              {algoritmos.map((algo, idx) => (
-                <AccordionItem key={idx} value={`item-${idx}`} className="border rounded-lg bg-card px-4 border-primary/10">
-                  <AccordionTrigger className="hover:no-underline py-3">
-                    <div className="flex items-center gap-2">
-                      {algo.nombre.includes("IA") ? <Brain className="w-4 h-4 text-purple-500" /> : <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                      <span className="text-sm font-semibold">{algo.nombre}</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-4 text-xs text-muted-foreground leading-relaxed">
-                    {algo.explicacion}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </div>
-        </div>
+          <TabsContent value="fundamentos" className="mt-6 space-y-6">
+            {chartData.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Activity className="w-6 h-6 text-primary" /> Diagrama Comparativo (vs Documento Más Similar)
+                  </CardTitle>
+                  <CardDescription>
+                    Así calificó matemáticamente la máquina el grado de similitud entre tu base y "{topMatch?.tituloTarget || "el artículo más cercano"}".
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                      <XAxis dataKey="name" tick={{ fontSize: 13, fontWeight: "bold" }} />
+                      <YAxis domain={[0, 100]} tickFormatter={(val) => `${val}%`} />
+                      <Tooltip formatter={(value) => [`${value}% Similitud`, "Similitud"]} />
+                      <Legend />
+                      <Bar dataKey="Similitud" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} barSize={50} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FunctionSquare className="w-5 h-5 text-primary" /> Fundamentos Matemáticos por Algoritmo
+                </CardTitle>
+                <CardDescription>Explicación técnica detallada (paso a paso), tal cual lo demanda el Requerimiento 2.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Accordion type="single" collapsible className="w-full space-y-4">
+                  {algoritmos.map((algo, idx) => (
+                    <AccordionItem key={idx} value={`item-${idx}`} className="border rounded-lg bg-card px-5 border-primary/20 shadow-sm">
+                      <AccordionTrigger className="hover:no-underline py-4">
+                        <div className="flex items-center gap-3">
+                          {algo.nombre.includes("IA") || algo.nombre.includes("Word2Vec") || algo.nombre.includes("Sentence-BERT") ? 
+                            <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" /> : 
+                            <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          }
+                          <span className="text-base font-bold">{algo.nombre}</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-6">
+                        <div className="p-4 bg-muted/30 rounded-md border space-y-4">
+                          <p className="text-sm font-medium text-foreground leading-relaxed">
+                            {algo.explicacion}
+                          </p>
+                          <div className="pt-2">
+                            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
+                              <Code className="w-3 h-3" /> Expresión Teórica
+                            </h4>
+                            <div className="bg-background border p-4 rounded-md overflow-x-auto shadow-inner text-center font-mono text-sm">
+                              {/* Lógica condicional cruda para detectar a qué Algoritmo pertenece, inyectando su fórmula */}
+                              {algo.nombre.includes("Coseno") && (
+                                <span>Sim(A,B) = <span className="text-primary font-bold">(A · B) / (||A|| × ||B||)</span></span>
+                              )}
+                              {algo.nombre.includes("Jaccard") && (
+                                <span>J(A,B) = <span className="text-primary font-bold">|A ∩ B| / |A ∪ B|</span> = |Intersección| / |Unión|</span>
+                              )}
+                              {algo.nombre.includes("Levenshtein") && (
+                                <span>Dist(a,b) = <span className="text-primary font-bold">min</span > (inserciones, eliminaciones, sustituciones) para a → b <br/> <br /> <span className="text-xs text-muted-foreground">Sim(a,b) = 1 - (Dist(a,b) / max(|a|, |b|))</span></span>
+                              )}
+                              {algo.nombre.includes("Smith") && (
+                                <span>S(i,j) = <span className="text-primary font-bold">max</span> (0, S(i-1,j-1)+Match, S(i-1,j)-Penalidad, S(i,j-1)-Penalidad)</span>
+                              )}
+                              {algo.nombre.includes("Sentence-BERT") && (
+                                <span>Similitud_SBERT = <span className="text-primary font-bold">Coseno( RedNeuronal(TextoA), RedNeuronal(TextoB) )</span></span>
+                              )}
+                              {algo.nombre.includes("Word2Vec") && (
+                                <span>Score = <span className="text-primary font-bold">Promedio_Global</span>( Vectorizacion(Palabras_A) ) · <span className="text-primary font-bold">Promedio_Global</span>( Vectorizacion(Palabras_B) )</span>
+                              )}
+                              {/* Fallback si añaden otro raro */}
+                              {!algo.nombre.includes("Coseno") && !algo.nombre.includes("Jaccard") && !algo.nombre.includes("Levenshtein") && !algo.nombre.includes("Smith") && !algo.nombre.includes("Sentence-BERT") && !algo.nombre.includes("Word2Vec") && (
+                                <span>Métrica Computacional para Frecuencia Normalizada</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );

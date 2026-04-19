@@ -4,7 +4,7 @@ import DocumentTable from "@/components/DocumentTable";
 import { addHistory, toggleFavorite, getFavorites, Document, FACULTIES, DOCUMENT_TYPES } from "@/lib/store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Filter, X, Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import { Filter, X, Upload, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { bibliometriaService, Articulo } from "@/lib/bibliometriaService";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -25,6 +25,7 @@ const SearchPage = () => {
   const [favorites, setFavorites] = useState<string[]>(getFavorites());
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
@@ -44,22 +45,17 @@ const SearchPage = () => {
     description: art.resumen || "Sin descripción"
   });
 
-  const loadDocuments = useCallback(async (page: number) => {
+  const loadDocuments = useCallback(async (page: number, currentQuery: string) => {
     try {
-      const response = await bibliometriaService.obtenerArticulos(page, 10);
+      const response = await bibliometriaService.obtenerArticulos(page, 10, currentQuery);
       const mappedArticles = response.content.map(mapArticuloToDocument);
       
-      // Filtrado local según la búsqueda de la interfaz
+      // Filtrado local solo para Selects, la query de texto ya viene del backend
       const filtered = mappedArticles.filter(doc => {
-        const q = query.toLowerCase();
-        const matchesQuery = !q || 
-          doc.title.toLowerCase().includes(q) || 
-          doc.description.toLowerCase().includes(q);
-          
         const matchesFaculty = !faculty || doc.faculty === faculty;
         const matchesType = !docType || doc.type === docType;
         
-        return matchesQuery && matchesFaculty && matchesType;
+        return matchesFaculty && matchesType;
       });
 
       setDocuments(filtered);
@@ -76,18 +72,47 @@ const SearchPage = () => {
   }, [toast]);
 
   useEffect(() => {
-    loadDocuments(currentPage);
-  }, [currentPage, loadDocuments]);
+    loadDocuments(currentPage, query);
+  }, [currentPage, loadDocuments]); // Removido query para no hacer re-fetch en cada letra, sino al presionar buscar
+
 
   const handleSearch = useCallback((q: string) => {
     setQuery(q);
+    setCurrentPage(0);
+    loadDocuments(0, q);
     if (q.trim()) {
       addHistory({ query: q, type: "search" });
     }
-  }, []);
+  }, [loadDocuments]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleAutoExtractClick = async () => {
+    setIsExtracting(true);
+    toast({
+      title: "Extrayendo de APIs",
+      description: "Descargando artículos... esto tomará unos segundos.",
+    });
+
+    try {
+      const result = await bibliometriaService.automatizarDescarga("generative artificial intelligence");
+      toast({
+        title: "Extracción Exitosa",
+        description: `Nuevos guardados: ${result.unificados.length}. Duplicados ignorados: ${result.eliminados.length}`,
+      });
+      setCurrentPage(0);
+      await loadDocuments(0, query);
+    } catch (error) {
+      toast({
+        title: "Error de Extracción",
+        description: "Hubo un problema contactando con arXiv o Semantic Scholar.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,7 +132,7 @@ const SearchPage = () => {
         description: `Unificados: ${result.unificados.length}. Duplicados eliminados: ${result.eliminados.length}`,
       });
       setCurrentPage(0); // Volver a la primera página para ver lo nuevo
-      await loadDocuments(0);
+      await loadDocuments(0, query);
     } catch (error) {
       toast({
         title: "Error al cargar",
@@ -137,21 +162,16 @@ const SearchPage = () => {
     navigate("/similarity", { state: { articles: selectedArticles } });
   };
 
+  const handleDownloadCsvClick = () => {
+    window.open("http://localhost:8080/api/bibliometria/exportar/unificados", "_blank");
+  };
+
   return (
     <div className="space-y-6">
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileChange} 
-        multiple 
-        accept=".csv,.bib" 
-        className="hidden" 
-      />
-      
       <div className="flex justify-between items-start">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Gestión Bibliométrica</h2>
-          <p className="text-muted-foreground text-sm">Cargue archivos y analice la similitud de los abstracts</p>
+          <p className="text-muted-foreground text-sm">Analice la similitud de los abstracts de arXiv y Semantic Scholar</p>
         </div>
         <div className="flex gap-2">
           {selectedIds.length >= 1 && (
@@ -163,13 +183,29 @@ const SearchPage = () => {
             </Button>
           )}
           <Button 
-            onClick={handleUploadClick} 
-            disabled={isUploading}
+            onClick={() => window.open("http://localhost:8080/api/bibliometria/exportar/eliminados", "_blank")}
+            variant="ghost"
+            className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            title="Lista de artículos filtrados (duplicados)"
+          >
+            <Download className="w-4 h-4" />
+            Duplicados
+          </Button>
+          <Button 
+            onClick={() => window.open("http://localhost:8080/api/bibliometria/exportar/unificados", "_blank")}
             variant="outline"
             className="gap-2"
           >
-            <Upload className={`w-4 h-4 ${isUploading ? 'animate-pulse' : ''}`} />
-            {isUploading ? 'Procesando...' : 'Cargar CSV/BibTeX'}
+            <Download className="w-4 h-4" />
+            Base Unificada
+          </Button>
+          <Button 
+            onClick={handleAutoExtractClick} 
+            disabled={isExtracting}
+            className="bg-green-600 hover:bg-green-700 text-white gap-2"
+          >
+            <Download className={`w-4 h-4 ${isExtracting ? 'animate-bounce' : ''}`} />
+            {isExtracting ? 'Descargando...' : 'Extraer de APIs'}
           </Button>
         </div>
       </div>
@@ -180,7 +216,18 @@ const SearchPage = () => {
 
       <DocumentTable
         documents={documents}
-        onDownload={() => {}} // No necesario para este requerimiento
+        onDownload={(doc) => {
+          let targetUrl = "";
+          if (doc.size.startsWith("DOI: ") && doc.size !== "DOI: N/A" && !doc.id.startsWith("DOI-0.")) {
+            // Si hay un DOI oficial, dirigimos a ese
+            const doi = doc.size.replace("DOI: ", "");
+            targetUrl = `https://doi.org/${doi}`;
+          } else {
+            // Si no hay enlace directo, lo buscamos en Google Scholar para que puedan bajar su PDF
+            targetUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(doc.title)}`;
+          }
+          window.open(targetUrl, "_blank");
+        }}
         onToggleFavorite={handleToggleFavorite}
         favorites={favorites}
         selectedIds={selectedIds}

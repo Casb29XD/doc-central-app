@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Search, Clock, Star, LogOut } from "lucide-react";
+import { Search, Clock, Star, LogOut, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface AppLayoutProps {
@@ -10,6 +10,7 @@ interface AppLayoutProps {
 
 const navItems = [
   { path: "/search", label: "Buscar", icon: Search },
+  { path: "/mineria", label: "Minería", icon: BarChart3 },
   { path: "/favorites", label: "Favoritos", icon: Star },
   { path: "/history", label: "Historial", icon: Clock },
 ];

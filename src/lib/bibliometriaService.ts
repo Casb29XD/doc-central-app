@@ -24,6 +24,22 @@ export interface PaginatedResponse<T> {
   size: number;
 }
 
+export interface PalabraFrecuencia {
+  palabra: string;
+  frecuencia: number;
+}
+
+export interface PalabraDescubierta {
+  palabra: string;
+  frecuencia: number;
+  precision: number;
+}
+
+export interface ResultadoMineria {
+  palabrasBase: PalabraFrecuencia[];
+  nuevasPalabras: PalabraDescubierta[];
+}
+
 export interface AlgoritmoInfo {
   nombre: string;
   explicacion: string;
@@ -55,11 +71,30 @@ export const bibliometriaService = {
   },
 
   /**
+   * Extrae artículos automáticamente usando las APIs configuradas (ArXiv, Semantic Scholar)
+   */
+  async automatizarDescarga(query: string = "generative artificial intelligence"): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/automatizar?query=${encodeURIComponent(query)}`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        throw new Error(`Error en la extracción automática: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Error al llamar a /automatizar:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Obtiene la lista de artículos únicos con paginación
    */
-  async obtenerArticulos(page: number = 0, size: number = 10): Promise<PaginatedResponse<Articulo>> {
+  async obtenerArticulos(page: number = 0, size: number = 10, query: string = ""): Promise<PaginatedResponse<Articulo>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/articulos?page=${page}&size=${size}`);
+      const queryParam = query ? `&query=${encodeURIComponent(query)}` : "";
+      const response = await fetch(`${API_BASE_URL}/articulos?page=${page}&size=${size}${queryParam}`);
       if (!response.ok) {
         throw new Error(`Error al obtener artículos: ${response.statusText}`);
       }
@@ -68,6 +103,12 @@ export const bibliometriaService = {
       console.error("Error al llamar a /articulos:", error);
       throw error;
     }
+  },
+
+  async obtenerMineriaTextos(): Promise<ResultadoMineria> {
+    const res = await fetch(`${API_BASE_URL}/mineria/frecuencias`);
+    if (!res.ok) throw new Error("Error obteniendo resultados de minería");
+    return res.json();
   },
 
   /**

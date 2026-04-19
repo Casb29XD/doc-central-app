@@ -6,6 +6,7 @@ import SearchPage from "@/pages/SearchPage";
 import FavoritesPage from "@/pages/FavoritesPage";
 import HistoryPage from "@/pages/HistoryPage";
 import SimilarityPage from "@/pages/SimilarityPage";
+import MineriaPage from "@/pages/MineriaPage";
 import { getUser, setUser, logoutUser } from "@/lib/store";
 
 const Index = () => {
@@ -36,6 +37,7 @@ const Index = () => {
         <Route path="/favorites" element={<FavoritesPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/similarity" element={<SimilarityPage />} />
+        <Route path="/mineria" element={<MineriaPage />} />
         <Route path="*" element={<Navigate to="/search" replace />} />
       </Routes>
     </AppLayout>
