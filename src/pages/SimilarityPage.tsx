@@ -253,8 +253,8 @@ const SimilarityPage = () => {
                               {algo.nombre.includes("Levenshtein") && (
                                 <span>Dist(a,b) = <span className="text-primary font-bold">min</span > (inserciones, eliminaciones, sustituciones) para a → b <br/> <br /> <span className="text-xs text-muted-foreground">Sim(a,b) = 1 - (Dist(a,b) / max(|a|, |b|))</span></span>
                               )}
-                              {algo.nombre.includes("Smith") && (
-                                <span>S(i,j) = <span className="text-primary font-bold">max</span> (0, S(i-1,j-1)+Match, S(i-1,j)-Penalidad, S(i,j-1)-Penalidad)</span>
+                              {algo.nombre.includes("Dice") && (
+                                <span>DSC(A,B) = <span className="text-primary font-bold">2 |A ∩ B| / (|A| + |B|)</span> <br /><br /><span className="text-xs text-muted-foreground">Donde A y B son los conjuntos de bigramas de cada texto</span></span>
                               )}
                               {algo.nombre.includes("Sentence-BERT") && (
                                 <span>Similitud_SBERT = <span className="text-primary font-bold">Coseno( RedNeuronal(TextoA), RedNeuronal(TextoB) )</span></span>
@@ -263,7 +263,7 @@ const SimilarityPage = () => {
                                 <span>Score = <span className="text-primary font-bold">Promedio_Global</span>( Vectorizacion(Palabras_A) ) · <span className="text-primary font-bold">Promedio_Global</span>( Vectorizacion(Palabras_B) )</span>
                               )}
                               {/* Fallback si añaden otro raro */}
-                              {!algo.nombre.includes("Coseno") && !algo.nombre.includes("Jaccard") && !algo.nombre.includes("Levenshtein") && !algo.nombre.includes("Smith") && !algo.nombre.includes("Sentence-BERT") && !algo.nombre.includes("Word2Vec") && (
+                              {!algo.nombre.includes("Coseno") && !algo.nombre.includes("Jaccard") && !algo.nombre.includes("Levenshtein") && !algo.nombre.includes("Dice") && !algo.nombre.includes("Sentence-BERT") && !algo.nombre.includes("Word2Vec") && (
                                 <span>Métrica Computacional para Frecuencia Normalizada</span>
                               )}
                             </div>
