@@ -45,6 +45,23 @@ export interface AlgoritmoInfo {
   explicacion: string;
 }
 
+export interface MapaData {
+  id: string;
+  name: string;
+  value: number;
+}
+
+export interface LineaTemporalData {
+  anio: string;
+  revistas: { [key: string]: number };
+}
+
+export interface VisualizacionResponse {
+  mapaCalor: MapaData[];
+  nubePalabras: PalabraFrecuencia[];
+  lineaTemporal: LineaTemporalData[];
+}
+
 export interface ClusterNode {
   id: string | null;
   label: string | null;
@@ -160,5 +177,11 @@ export const bibliometriaService = {
       console.error("Error al obtener algoritmos:", error);
       throw error;
     }
+  },
+
+  async obtenerDatosVisualizacion(): Promise<VisualizacionResponse> {
+    const res = await fetch(`${API_BASE_URL}/visualizacion`);
+    if (!res.ok) throw new Error("Error obteniendo los datos de visualización");
+    return res.json();
   }
 };

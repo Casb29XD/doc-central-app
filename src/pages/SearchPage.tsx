@@ -172,60 +172,66 @@ const SearchPage = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Gestión Bibliométrica</h2>
-          <p className="text-muted-foreground text-sm">Analice la similitud de los abstracts de arXiv y Semantic Scholar</p>
-        </div>
-        <div className="flex gap-2">
-          {selectedIds.length >= 1 && (
-            <>
-              <Button 
-                onClick={goToSimilarity}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
-              >
-                Analizar Similitud ({selectedIds.length})
-              </Button>
-              <Button 
-                onClick={goToAgrupamiento}
-                className="bg-purple-600 hover:bg-purple-700 text-white gap-2"
-              >
-                Agrupar Selección ({selectedIds.length})
-              </Button>
-            </>
-          )}
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+      
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-2xl p-8 border border-primary/10">
+        <h1 className="text-3xl font-extrabold text-foreground mb-2 tracking-tight">Gestor Bibliométrico Profesional</h1>
+        <p className="text-muted-foreground text-lg max-w-2xl mb-6">
+          Busca, unifica y analiza literatura científica desde arXiv y Semantic Scholar de forma automática.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button 
+            onClick={handleAutoExtractClick} 
+            disabled={isExtracting}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-medium shadow-sm transition-all"
+          >
+            <Download className={`w-4 h-4 ${isExtracting ? 'animate-bounce' : ''}`} />
+            {isExtracting ? 'Extrayendo datos...' : 'Extraer Nuevos Artículos (APIs)'}
+          </Button>
+          <Button 
+            onClick={() => window.open("http://localhost:8080/api/bibliometria/exportar/unificados", "_blank")}
+            variant="outline"
+            className="gap-2 bg-background/50 backdrop-blur-sm hover:bg-background"
+          >
+            <Download className="w-4 h-4" />
+            Descargar Base Unificada (CSV)
+          </Button>
           <Button 
             onClick={() => window.open("http://localhost:8080/api/bibliometria/exportar/eliminados", "_blank")}
             variant="ghost"
             className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
             title="Lista de artículos filtrados (duplicados)"
           >
-            <Download className="w-4 h-4" />
-            Duplicados
-          </Button>
-          <Button 
-            onClick={() => window.open("http://localhost:8080/api/bibliometria/exportar/unificados", "_blank")}
-            variant="outline"
-            className="gap-2"
-          >
-            <Download className="w-4 h-4" />
-            Base Unificada
-          </Button>
-          <Button 
-            onClick={handleAutoExtractClick} 
-            disabled={isExtracting}
-            className="bg-green-600 hover:bg-green-700 text-white gap-2"
-          >
-            <Download className={`w-4 h-4 ${isExtracting ? 'animate-bounce' : ''}`} />
-            {isExtracting ? 'Descargando...' : 'Extraer de APIs'}
+            Ver Duplicados
           </Button>
         </div>
       </div>
-      
-      <div className="mt-4">
-        <DocumentSearch onSearch={handleSearch} />
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex-1 w-full">
+          <DocumentSearch onSearch={handleSearch} />
+        </div>
+        
+        {/* Acciones de Selección */}
+        {selectedIds.length >= 1 && (
+          <div className="flex gap-2 w-full md:w-auto shrink-0 animate-in slide-in-from-right-2">
+            <Button 
+              onClick={goToSimilarity}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 flex-1 md:flex-none shadow-sm h-12 px-6 font-semibold"
+            >
+              Analizar Similitud ({selectedIds.length})
+            </Button>
+            <Button 
+              onClick={goToAgrupamiento}
+              className="bg-purple-600 hover:bg-purple-700 text-white gap-2 flex-1 md:flex-none shadow-sm h-12 px-6 font-semibold"
+            >
+              Agrupar Selección ({selectedIds.length})
+            </Button>
+          </div>
+        )}
       </div>
+
 
       <DocumentTable
         documents={documents}

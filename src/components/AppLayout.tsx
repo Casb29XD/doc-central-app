@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Search, Clock, Star, LogOut, Network, Share2, User } from "lucide-react";
+import { Search, Clock, Star, LogOut, Network, BarChart2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ interface AppLayoutProps {
 const navItems = [
   { path: "/search", label: "Buscar", icon: Search },
   { path: "/agrupamiento", label: "Agrupamiento", icon: Network },
+  { path: "/visualizacion", label: "Dashboard", icon: BarChart2 },
 ];
 
 const AppLayout = ({ user, onLogout, children }: AppLayoutProps) => {
