@@ -162,6 +162,11 @@ const SearchPage = () => {
     navigate("/similarity", { state: { articles: selectedArticles } });
   };
 
+  const goToAgrupamiento = () => {
+    const selectedArticles = documents.filter(d => selectedIds.includes(d.id));
+    navigate("/agrupamiento", { state: { articles: selectedArticles } });
+  };
+
   const handleDownloadCsvClick = () => {
     window.open("http://localhost:8080/api/bibliometria/exportar/unificados", "_blank");
   };
@@ -175,12 +180,20 @@ const SearchPage = () => {
         </div>
         <div className="flex gap-2">
           {selectedIds.length >= 1 && (
-            <Button 
-              onClick={goToSimilarity}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
-            >
-              Analizar Similitud ({selectedIds.length})
-            </Button>
+            <>
+              <Button 
+                onClick={goToSimilarity}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+              >
+                Analizar Similitud ({selectedIds.length})
+              </Button>
+              <Button 
+                onClick={goToAgrupamiento}
+                className="bg-purple-600 hover:bg-purple-700 text-white gap-2"
+              >
+                Agrupar Selección ({selectedIds.length})
+              </Button>
+            </>
           )}
           <Button 
             onClick={() => window.open("http://localhost:8080/api/bibliometria/exportar/eliminados", "_blank")}

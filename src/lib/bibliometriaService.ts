@@ -45,6 +45,15 @@ export interface AlgoritmoInfo {
   explicacion: string;
 }
 
+export interface ClusterNode {
+  id: string | null;
+  label: string | null;
+  left: ClusterNode | null;
+  right: ClusterNode | null;
+  distance: number;
+  size: number;
+}
+
 export const bibliometriaService = {
   /**
    * Carga archivos y dispara el proceso de unificación en el servidor
@@ -108,6 +117,32 @@ export const bibliometriaService = {
   async obtenerMineriaTextos(): Promise<ResultadoMineria> {
     const res = await fetch(`${API_BASE_URL}/mineria/frecuencias`);
     if (!res.ok) throw new Error("Error obteniendo resultados de minería");
+    return res.json();
+  },
+
+  async obtenerMineriaDocumento(id: string): Promise<ResultadoMineria> {
+    const res = await fetch(`${API_BASE_URL}/mineria/frecuencias/${encodeURIComponent(id)}`);
+    if (!res.ok) throw new Error("Error obteniendo resultados de minería del documento");
+    return res.json();
+  },
+
+  async obtenerAgrupamiento(linkage: string = "average", limit: number = 50): Promise<ClusterNode> {
+    const res = await fetch(`${API_BASE_URL}/agrupamiento?linkage=${linkage}&limit=${limit}`);
+    if (!res.ok) throw new Error("Error obteniendo el agrupamiento jerárquico");
+    if (res.status === 204) throw new Error("No hay suficientes artículos para agrupar");
+    return res.json();
+  },
+
+  async obtenerAgrupamientoPorIds(ids: string[], linkage: string = "average", metric: string = "Coseno"): Promise<ClusterNode> {
+    const res = await fetch(`${API_BASE_URL}/agrupamiento`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids, linkage, metric })
+    });
+    if (!res.ok) throw new Error("Error obteniendo el agrupamiento jerárquico");
+    if (res.status === 204) throw new Error("No hay suficientes artículos para agrupar");
     return res.json();
   },
 

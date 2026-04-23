@@ -1,7 +1,13 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Search, Clock, Star, LogOut, BarChart3 } from "lucide-react";
+import { Search, Clock, Star, LogOut, Network, Share2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 interface AppLayoutProps {
   user: string;
   onLogout: () => void;
@@ -10,9 +16,7 @@ interface AppLayoutProps {
 
 const navItems = [
   { path: "/search", label: "Buscar", icon: Search },
-  { path: "/mineria", label: "Minería", icon: BarChart3 },
-  { path: "/favorites", label: "Favoritos", icon: Star },
-  { path: "/history", label: "Historial", icon: Clock },
+  { path: "/agrupamiento", label: "Agrupamiento", icon: Network },
 ];
 
 const AppLayout = ({ user, onLogout, children }: AppLayoutProps) => {
@@ -53,11 +57,33 @@ const AppLayout = ({ user, onLogout, children }: AppLayoutProps) => {
           </nav>
 
           <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground hidden md:block">{user}</span>
-            <Button variant="ghost" size="sm" onClick={onLogout} className="gap-1.5 text-muted-foreground">
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Salir</span>
-            </Button>
+            <span className="text-sm font-medium text-muted-foreground hidden md:block">{user}</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                  <User className="w-5 h-5 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <div className="px-2 py-1.5 text-sm font-semibold md:hidden">
+                  {user}
+                </div>
+                <DropdownMenuSeparator className="md:hidden" />
+                <DropdownMenuItem onClick={() => navigate("/history")} className="cursor-pointer">
+                  <Clock className="w-4 h-4 mr-2" />
+                  Historial
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/favorites")} className="cursor-pointer">
+                  <Star className="w-4 h-4 mr-2" />
+                  Favoritos
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onLogout} className="text-destructive cursor-pointer">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Salir
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>

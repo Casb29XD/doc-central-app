@@ -10,6 +10,30 @@ import { similarityService, ResultadoComparacion } from "@/lib/similarityService
 import { bibliometriaService, AlgoritmoInfo } from "@/lib/bibliometriaService";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+
+const stopwords = new Set(["el", "la", "los", "las", "un", "una", "unos", "unas", "y", "o", "de", "en", "a", "que", "es", "con", "por", "para", "su", "se", "del", "al", "como", "más", "pero", "este", "esta", "the", "and", "of", "in", "to", "is", "for", "with", "on", "by", "this", "that", "it", "are", "from", "as", "be", "an", "was"]);
+
+function highlightCommonWords(text: string, referenceText: string) {
+  if (!text || !referenceText) return text;
+  
+  const refWords = new Set(
+    referenceText.toLowerCase()
+      .replace(/[^\w\sáéíóúüñ]/g, '')
+      .split(/\s+/)
+      .filter(w => w.length > 3 && !stopwords.has(w))
+  );
+
+  const tokens = text.split(/(\s+|[.,;!?()[\]{}"]+)/);
+  
+  return tokens.map((token, i) => {
+    const cleanToken = token.toLowerCase().replace(/[^\w\sáéíóúüñ]/g, '');
+    if (cleanToken.length > 3 && !stopwords.has(cleanToken) && refWords.has(cleanToken)) {
+      return <mark key={i} className="bg-yellow-200 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-100 rounded-sm px-0.5">{token}</mark>;
+    }
+    return token;
+  });
+}
 
 const SimilarityPage = () => {
   const location = useLocation();
@@ -20,6 +44,7 @@ const SimilarityPage = () => {
   const [results, setResults] = useState<ResultadoComparacion[]>([]);
   const [algoritmos, setAlgoritmos] = useState<AlgoritmoInfo[]>([]);
   const [baseArticleIndex, setBaseArticleIndex] = useState(0);
+  const [selectedResult, setSelectedResult] = useState<ResultadoComparacion | null>(null);
   
   const articles = location.state?.articles || [];
 
@@ -163,9 +188,18 @@ const SimilarityPage = () => {
                     </TableHeader>
                     <TableBody>
                       {results.length > 0 ? results.map((res, idx) => (
-                        <TableRow key={idx} className="hover:bg-muted/50 transition-colors">
-                          <TableCell className="max-w-[200px] font-medium leading-relaxed">
-                            {res.tituloTarget}
+                        <TableRow 
+                          key={idx} 
+                          className="hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => setSelectedResult(res)}
+                        >
+                          <TableCell className="max-w-[300px] leading-relaxed">
+                            <p className="font-medium text-primary underline-offset-4 hover:underline mb-1">
+                              {res.tituloTarget}
+                            </p>
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {res.resumenTarget || "Resumen no disponible."}
+                            </p>
                           </TableCell>
                           {algoritmos.map(algo => (
                             <TableCell key={algo.nombre} className={`text-center text-sm ${getScoreColor(res.puntajesPorAlgoritmo[algo.nombre] || 0)}`}>
@@ -278,6 +312,39 @@ const SimilarityPage = () => {
           </TabsContent>
         </Tabs>
       )}
+
+      <Dialog open={!!selectedResult} onOpenChange={(open) => !open && setSelectedResult(null)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Comparación de Textos</DialogTitle>
+            <DialogDescription>
+              Resaltado de similitudes entre el artículo base y el documento contrastado.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 font-semibold text-primary border-b pb-2">
+                <Fingerprint className="w-4 h-4" /> Artículo Base
+              </div>
+              <p className="font-medium text-sm">{baseArt?.title}</p>
+              <div className="text-sm text-muted-foreground p-4 bg-muted/30 rounded-md border leading-relaxed text-justify">
+                {highlightCommonWords(baseArt?.description || "", selectedResult?.resumenTarget || "")}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 font-semibold text-orange-600 border-b pb-2">
+                <BookOpen className="w-4 h-4" /> Documento Contrastado
+              </div>
+              <p className="font-medium text-sm">{selectedResult?.tituloTarget}</p>
+              <div className="text-sm text-muted-foreground p-4 bg-orange-500/5 dark:bg-orange-900/10 rounded-md border border-orange-500/20 leading-relaxed text-justify">
+                {highlightCommonWords(selectedResult?.resumenTarget || "", baseArt?.description || "")}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

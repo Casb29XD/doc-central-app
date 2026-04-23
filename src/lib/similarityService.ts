@@ -5,6 +5,7 @@ const API_BASE_URL = "http://localhost:8080/api/bibliometria";
 export interface ResultadoComparacion {
   idArticuloTarget: string;
   tituloTarget: string;
+  resumenTarget?: string;
   puntajesPorAlgoritmo: { [key: string]: number };
 }
 
