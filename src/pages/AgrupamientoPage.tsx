@@ -6,8 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Network, GitMerge, Info, ArrowLeft, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { bibliometriaService, ClusterNode, AlgoritmoInfo } from "@/lib/bibliometriaService";
+import { bibliometriaService, ClusterNode, AlgoritmoInfo, ComparacionMetodo } from "@/lib/bibliometriaService";
 import { Slider } from "@/components/ui/slider";
+import { Progress } from "@/components/ui/progress";
 
 const DendrogramSVG = ({ data }: { data: ClusterNode | null }) => {
   const [thresholdPercent, setThresholdPercent] = useState(70);
@@ -216,6 +217,7 @@ const AgrupamientoPage = () => {
   
   const [data, setData] = useState<ClusterNode | null>(null);
   const [loading, setLoading] = useState(false);
+  const [comparacion, setComparacion] = useState<ComparacionMetodo[]>([]);
   const [method, setMethod] = useState("average");
   const [metric, setMetric] = useState("Coseno");
   const [algoritmos, setAlgoritmos] = useState<AlgoritmoInfo[]>([]);
@@ -235,6 +237,9 @@ const AgrupamientoPage = () => {
         const ids = articles.map((a: any) => a.id);
         const root = await bibliometriaService.obtenerAgrupamientoPorIds(ids, method, metric);
         setData(root);
+        
+        const comp = await bibliometriaService.obtenerComparacionAgrupamiento(ids, metric);
+        setComparacion(comp);
       } catch (error) {
         toast({
           title: "Error al generar clúster",
@@ -298,11 +303,18 @@ const AgrupamientoPage = () => {
       </div>
 
       <Tabs defaultValue="average" onValueChange={setMethod} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="single">Single Linkage</TabsTrigger>
-          <TabsTrigger value="average">Average Linkage (UPGMA)</TabsTrigger>
+          <TabsTrigger value="average">Average Linkage</TabsTrigger>
           <TabsTrigger value="complete">Complete Linkage</TabsTrigger>
+          <TabsTrigger value="comparacion" className="bg-primary/10 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Comparar Métodos</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="single" className="m-0"></TabsContent>
+        <TabsContent value="average" className="m-0"></TabsContent>
+        <TabsContent value="complete" className="m-0"></TabsContent>
+        
+        {method !== "comparacion" ? (
 
         <Card>
           <CardHeader>
@@ -340,6 +352,40 @@ const AgrupamientoPage = () => {
             </div>
           </CardContent>
         </Card>
+        ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Network className="w-5 h-5 text-primary" />
+              Comparación Dinámica de Métodos
+            </CardTitle>
+            <CardDescription>
+              El backend calculó un índice de cohesión para cada método basado en el promedio de las distancias de fusión.
+              Un mayor puntaje indica que los clústeres son más densos y consistentes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center p-10"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>
+            ) : (
+              <div className="space-y-8">
+                {comparacion.map((c, idx) => (
+                  <div key={idx} className="space-y-2">
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <h4 className="font-bold text-lg capitalize">{c.metodo} Linkage</h4>
+                        <p className="text-sm text-muted-foreground">{c.descripcion}</p>
+                      </div>
+                      <span className="font-bold text-2xl text-primary">{c.score}%</span>
+                    </div>
+                    <Progress value={c.score} className="h-3" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        )}
       </Tabs>
     </div>
   );

@@ -1,8 +1,7 @@
 /**
  * Servicio para comunicarse con el backend de Spring Boot
  */
-
-const API_BASE_URL = "http://localhost:8080/api/bibliometria";
+const API_BASE_URL = "/api/bibliometria";
 
 export interface Articulo {
   id?: string;
@@ -69,6 +68,12 @@ export interface ClusterNode {
   right: ClusterNode | null;
   distance: number;
   size: number;
+}
+
+export interface ComparacionMetodo {
+  metodo: string;
+  score: number;
+  descripcion: string;
 }
 
 export const bibliometriaService = {
@@ -160,6 +165,19 @@ export const bibliometriaService = {
     });
     if (!res.ok) throw new Error("Error obteniendo el agrupamiento jerárquico");
     if (res.status === 204) throw new Error("No hay suficientes artículos para agrupar");
+    return res.json();
+  },
+
+  async obtenerComparacionAgrupamiento(ids: string[], metric: string = "Coseno"): Promise<ComparacionMetodo[]> {
+    const res = await fetch(`${API_BASE_URL}/agrupamiento/comparar`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids, metric })
+    });
+    if (!res.ok) throw new Error("Error comparando métodos de agrupamiento");
+    if (res.status === 204) throw new Error("No hay suficientes artículos para comparar");
     return res.json();
   },
 
