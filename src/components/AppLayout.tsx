@@ -1,13 +1,13 @@
-import { useNavigate, useLocation } from "react-router-dom";
-import { Search, Clock, Star, LogOut, Network, BarChart2, User, BookOpen, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Clock, LogOut, Map, Search, Star, User } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 interface AppLayoutProps {
   user: string;
   onLogout: () => void;
@@ -16,7 +16,6 @@ interface AppLayoutProps {
 
 const navItems = [
   { path: "/", label: "Búsqueda", icon: Search },
-  { path: "/mineria", label: "Minería de Textos", icon: BookOpen },
   { path: "/visualizacion", label: "Dashboard", icon: Map },
 ];
 
