@@ -201,5 +201,49 @@ export const bibliometriaService = {
     const res = await fetch(`${API_BASE_URL}/visualizacion`);
     if (!res.ok) throw new Error("Error obteniendo los datos de visualización");
     return res.json();
+  },
+
+  async listarFavoritos(usuarioId: string): Promise<any[]> {
+    const res = await fetch(`${API_BASE_URL}/favoritos`, {
+      headers: { "X-User-Id": usuarioId }
+    });
+    if (!res.ok) throw new Error("Error al obtener favoritos");
+    return res.json();
+  },
+
+  async agregarFavorito(usuarioId: string, articulo: Articulo): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/favoritos`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "X-User-Id": usuarioId 
+      },
+      body: JSON.stringify(articulo)
+    });
+    if (!res.ok) throw new Error("Error al agregar favorito");
+  },
+
+  async quitarFavorito(usuarioId: string, articuloId: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/favoritos/${encodeURIComponent(articuloId)}`, {
+      method: "DELETE",
+      headers: { "X-User-Id": usuarioId }
+    });
+    if (!res.ok) throw new Error("Error al quitar favorito");
+  },
+
+  async listarHistorial(usuarioId: string): Promise<any[]> {
+    const res = await fetch(`${API_BASE_URL}/historial`, {
+      headers: { "X-User-Id": usuarioId }
+    });
+    if (!res.ok) throw new Error("Error al obtener historial");
+    return res.json();
+  },
+
+  async agregarHistorial(usuarioId: string, query: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/historial?query=${encodeURIComponent(query)}`, {
+      method: "POST",
+      headers: { "X-User-Id": usuarioId }
+    });
+    if (!res.ok) throw new Error("Error al guardar historial");
   }
 };

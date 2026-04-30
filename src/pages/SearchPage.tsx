@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import DocumentSearch from "@/components/DocumentSearch";
 import DocumentTable from "@/components/DocumentTable";
-import { addHistory, toggleFavorite, getFavorites, Document, FACULTIES, DOCUMENT_TYPES } from "@/lib/store";
+import { addHistory, toggleFavorite, getFavorites, getUser, Document, FACULTIES, DOCUMENT_TYPES } from "@/lib/store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Filter, X, Upload, ChevronLeft, ChevronRight, Download } from "lucide-react";
@@ -22,7 +22,7 @@ const SearchPage = () => {
   const [faculty, setFaculty] = useState<string>("");
   const [docType, setDocType] = useState<string>("");
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [favorites, setFavorites] = useState<string[]>(getFavorites());
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -33,6 +33,19 @@ const SearchPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      try {
+        const userId = getUser() || "anonymous";
+        const favs = await bibliometriaService.listarFavoritos(userId);
+        setFavorites(favs.map(f => f.articuloId));
+      } catch (error) {
+        console.error("Error al cargar favoritos", error);
+      }
+    };
+    fetchFavorites();
+  }, []);
 
   const mapArticuloToDocument = (art: Articulo): Document => ({
     id: art.id || `DOI-${art.doi || Math.random().toString(36).substr(2, 9)}`,
@@ -76,12 +89,17 @@ const SearchPage = () => {
   }, [currentPage, loadDocuments]); // Removido query para no hacer re-fetch en cada letra, sino al presionar buscar
 
 
-  const handleSearch = useCallback((q: string) => {
+  const handleSearch = useCallback(async (q: string) => {
     setQuery(q);
     setCurrentPage(0);
     loadDocuments(0, q);
     if (q.trim()) {
-      addHistory({ query: q, type: "search" });
+      try {
+        const userId = getUser() || "anonymous";
+        await bibliometriaService.agregarHistorial(userId, q);
+      } catch (e) {
+        console.error("Error al registrar búsqueda en el historial", e);
+      }
     }
   }, [loadDocuments]);
 
@@ -145,10 +163,34 @@ const SearchPage = () => {
     }
   };
 
-  const handleToggleFavorite = useCallback((doc: Document) => {
-    toggleFavorite(doc.id);
-    setFavorites(getFavorites());
-  }, []);
+  const handleToggleFavorite = useCallback(async (doc: Document) => {
+    try {
+      const userId = getUser() || "anonymous";
+      const isFav = favorites.includes(doc.id);
+      
+      if (isFav) {
+        await bibliometriaService.quitarFavorito(userId, doc.id);
+        setFavorites(prev => prev.filter(id => id !== doc.id));
+        toast({ title: "Favorito removido", description: "Eliminado de MongoDB Atlas." });
+      } else {
+        const articulo: Articulo = {
+          id: doc.id,
+          titulo: doc.title,
+          autores: [],
+          resumen: doc.description,
+          anio: parseInt(doc.date.split("-")[0]) || new Date().getFullYear(),
+          revista: "",
+          doi: doc.size.replace("DOI: ", ""),
+          origen: doc.faculty
+        };
+        await bibliometriaService.agregarFavorito(userId, articulo);
+        setFavorites(prev => [...prev, doc.id]);
+        toast({ title: "Favorito agregado", description: "Guardado en MongoDB Atlas." });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo actualizar el favorito.", variant: "destructive" });
+    }
+  }, [favorites, toast]);
 
   const handleToggleSelect = (id: string) => {
     setSelectedIds(prev => 
