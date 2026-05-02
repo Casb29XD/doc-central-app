@@ -142,8 +142,10 @@ export const bibliometriaService = {
     return res.json();
   },
 
-  async obtenerMineriaDocumento(id: string): Promise<ResultadoMineria> {
-    const res = await fetch(`${API_BASE_URL}/mineria/frecuencias/${encodeURIComponent(id)}`);
+  async obtenerMineriaDocumento(id: string, usuarioId: string = "anonymous"): Promise<ResultadoMineria> {
+    const res = await fetch(`${API_BASE_URL}/mineria/frecuencias/${encodeURIComponent(id)}`, {
+      headers: { "X-User-Id": usuarioId }
+    });
     if (!res.ok) throw new Error("Error obteniendo resultados de minería del documento");
     return res.json();
   },

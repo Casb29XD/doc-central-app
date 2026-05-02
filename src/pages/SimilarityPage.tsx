@@ -8,6 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ArrowLeft, Brain, Calculator, Info, CheckCircle2, BookOpen, Fingerprint, Activity, Code, FunctionSquare } from "lucide-react";
 import { similarityService, ResultadoComparacion } from "@/lib/similarityService";
 import { bibliometriaService, AlgoritmoInfo } from "@/lib/bibliometriaService";
+import { getUser } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -72,7 +73,8 @@ const SimilarityPage = () => {
           doi: baseArt.size?.split(": ")[1] || ""
         };
 
-        const comparisons = await similarityService.analizarSimilitud(baseArticleMapped as any);
+        const userId = getUser() || "anonymous";
+        const comparisons = await similarityService.analizarSimilitud(baseArticleMapped as any, userId);
         setResults(comparisons);
       } catch (error) {
         toast({

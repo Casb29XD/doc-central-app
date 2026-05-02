@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Filter, X, Upload, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { bibliometriaService, Articulo } from "@/lib/bibliometriaService";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { 
   Pagination, 
   PaginationContent, 
@@ -18,7 +18,9 @@ import {
 } from "@/components/ui/pagination";
 
 const SearchPage = () => {
-  const [query, setQuery] = useState("");
+  const location = useLocation();
+  const initialQuery = new URLSearchParams(location.search).get("q") || "";
+  const [query, setQuery] = useState(initialQuery);
   const [faculty, setFaculty] = useState<string>("");
   const [docType, setDocType] = useState<string>("");
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -252,7 +254,7 @@ const SearchPage = () => {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex-1 w-full">
-          <DocumentSearch onSearch={handleSearch} />
+          <DocumentSearch onSearch={handleSearch} initialQuery={initialQuery} />
         </div>
         
         {/* Acciones de Selección */}

@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, BarChart3, Lightbulb, Target, TrendingUp, Sparkles } from "lucide-react";
 import { bibliometriaService, PalabraFrecuencia, PalabraDescubierta, ResultadoMineria } from "@/lib/bibliometriaService";
+import { getUser } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
@@ -49,7 +50,8 @@ const MineriaPage = () => {
           });
           return;
         }
-        const data = await bibliometriaService.obtenerMineriaDocumento(id);
+        const userId = getUser() || "anonymous";
+        const data = await bibliometriaService.obtenerMineriaDocumento(id, userId);
         setResultado(data);
       } catch (error) {
         toast({

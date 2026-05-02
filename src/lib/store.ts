@@ -13,8 +13,9 @@ export interface HistoryEntry {
   id: string;
   query: string;
   timestamp: string;
-  type: 'search' | 'download';
+  type: 'search' | 'download' | 'similarity' | 'analysis';
   documentTitle?: string;
+  details?: string;
 }
 
 export const FACULTIES = [

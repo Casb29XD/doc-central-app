@@ -16,10 +16,11 @@ const HistoryPage = () => {
         // Map backend model to frontend expected model if necessary
         const mapped = data.map(h => ({
           id: h.id,
-          query: h.tituloArticuloAnalizado,
+          query: h.tipoAccion === "BUSQUEDA" ? h.detallesAdicionales || h.tituloArticuloAnalizado : h.tituloArticuloAnalizado,
           timestamp: h.fecha,
-          type: "search",
-          documentTitle: `${h.totalResultados} resultados`
+          type: h.tipoAccion === "SIMILITUD" ? "similarity" : h.tipoAccion === "ANALISIS" ? "analysis" : "search",
+          documentTitle: `${h.totalResultados} resultados`,
+          details: h.detallesAdicionales
         }));
         
         setHistory(mapped);

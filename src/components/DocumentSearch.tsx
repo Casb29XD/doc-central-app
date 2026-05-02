@@ -1,14 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 
 interface DocumentSearchProps {
   onSearch: (query: string) => void;
+  initialQuery?: string;
 }
 
-const DocumentSearch = ({ onSearch }: DocumentSearchProps) => {
-  const [query, setQuery] = useState("");
+const DocumentSearch = ({ onSearch, initialQuery = "" }: DocumentSearchProps) => {
+  const [query, setQuery] = useState(initialQuery);
+
+  useEffect(() => {
+    if (initialQuery) {
+      setQuery(initialQuery);
+    }
+  }, [initialQuery]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
