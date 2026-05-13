@@ -1,10 +1,11 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, Star } from "lucide-react";
+import { Download, FileText, Star, BarChart3 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Document, isFavorite } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface DocumentTableProps {
   documents: Document[];
@@ -17,6 +18,7 @@ interface DocumentTableProps {
 
 const DocumentTable = ({ documents, onDownload, onToggleFavorite, favorites, selectedIds = [], onToggleSelect }: DocumentTableProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   if (documents.length === 0) {
     return (
@@ -50,13 +52,13 @@ const DocumentTable = ({ documents, onDownload, onToggleFavorite, favorites, sel
             <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead className="font-semibold text-foreground w-10"></TableHead>
               <TableHead className="font-semibold text-foreground w-10">Select</TableHead>
-              <TableHead className="font-semibold text-foreground">ID</TableHead>
-              <TableHead className="font-semibold text-foreground">Documento</TableHead>
+              <TableHead className="font-semibold text-foreground w-[120px]">ID</TableHead>
+              <TableHead className="font-semibold text-foreground min-w-[250px]">Documento</TableHead>
               <TableHead className="font-semibold text-foreground hidden md:table-cell">Tipo</TableHead>
               <TableHead className="font-semibold text-foreground hidden lg:table-cell">Facultad</TableHead>
               <TableHead className="font-semibold text-foreground hidden sm:table-cell">Fecha</TableHead>
               <TableHead className="font-semibold text-foreground">Estado</TableHead>
-              <TableHead className="font-semibold text-foreground text-right">Acción</TableHead>
+              <TableHead className="font-semibold text-foreground text-right min-w-[240px]">Acción</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -80,7 +82,7 @@ const DocumentTable = ({ documents, onDownload, onToggleFavorite, favorites, sel
                       aria-label={`Seleccionar ${doc.title}`}
                     />
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{doc.id}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground truncate max-w-[120px]" title={doc.id}>{doc.id}</TableCell>
                   <TableCell>
                     <p className="font-medium text-foreground text-sm">{doc.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block max-w-[200px] truncate">{doc.description}</p>
@@ -101,10 +103,16 @@ const DocumentTable = ({ documents, onDownload, onToggleFavorite, favorites, sel
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant={doc.status === "Disponible" ? "default" : "secondary"} onClick={() => handleDownload(doc)} disabled={doc.status !== "Disponible"} className="gap-1.5">
-                      <Download className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Descargar</span>
-                    </Button>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/mineria/${encodeURIComponent(doc.id)}`, { state: { doc } })} className="gap-1.5 whitespace-nowrap">
+                        <BarChart3 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Analizar</span>
+                      </Button>
+                      <Button size="sm" variant={doc.status === "Disponible" ? "default" : "secondary"} onClick={() => handleDownload(doc)} disabled={doc.status !== "Disponible"} className="gap-1.5 whitespace-nowrap">
+                        <Download className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Descargar</span>
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

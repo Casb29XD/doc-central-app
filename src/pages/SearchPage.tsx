@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import DocumentSearch from "@/components/DocumentSearch";
 import DocumentTable from "@/components/DocumentTable";
-import { addHistory, toggleFavorite, getFavorites, Document, FACULTIES, DOCUMENT_TYPES } from "@/lib/store";
+import { addHistory, toggleFavorite, getFavorites, getUser, Document, FACULTIES, DOCUMENT_TYPES } from "@/lib/store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Filter, X, Upload, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { bibliometriaService, Articulo } from "@/lib/bibliometriaService";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { 
   Pagination, 
   PaginationContent, 
@@ -18,11 +18,13 @@ import {
 } from "@/components/ui/pagination";
 
 const SearchPage = () => {
-  const [query, setQuery] = useState("");
+  const location = useLocation();
+  const initialQuery = new URLSearchParams(location.search).get("q") || "";
+  const [query, setQuery] = useState(initialQuery);
   const [faculty, setFaculty] = useState<string>("");
   const [docType, setDocType] = useState<string>("");
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [favorites, setFavorites] = useState<string[]>(getFavorites());
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -33,6 +35,19 @@ const SearchPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      try {
+        const userId = getUser() || "anonymous";
+        const favs = await bibliometriaService.listarFavoritos(userId);
+        setFavorites(favs.map(f => f.articuloId));
+      } catch (error) {
+        console.error("Error al cargar favoritos", error);
+      }
+    };
+    fetchFavorites();
+  }, []);
 
   const mapArticuloToDocument = (art: Articulo): Document => ({
     id: art.id || `DOI-${art.doi || Math.random().toString(36).substr(2, 9)}`,
@@ -76,12 +91,17 @@ const SearchPage = () => {
   }, [currentPage, loadDocuments]); // Removido query para no hacer re-fetch en cada letra, sino al presionar buscar
 
 
-  const handleSearch = useCallback((q: string) => {
+  const handleSearch = useCallback(async (q: string) => {
     setQuery(q);
     setCurrentPage(0);
     loadDocuments(0, q);
     if (q.trim()) {
-      addHistory({ query: q, type: "search" });
+      try {
+        const userId = getUser() || "anonymous";
+        await bibliometriaService.agregarHistorial(userId, q);
+      } catch (e) {
+        console.error("Error al registrar búsqueda en el historial", e);
+      }
     }
   }, [loadDocuments]);
 
@@ -145,10 +165,34 @@ const SearchPage = () => {
     }
   };
 
-  const handleToggleFavorite = useCallback((doc: Document) => {
-    toggleFavorite(doc.id);
-    setFavorites(getFavorites());
-  }, []);
+  const handleToggleFavorite = useCallback(async (doc: Document) => {
+    try {
+      const userId = getUser() || "anonymous";
+      const isFav = favorites.includes(doc.id);
+      
+      if (isFav) {
+        await bibliometriaService.quitarFavorito(userId, doc.id);
+        setFavorites(prev => prev.filter(id => id !== doc.id));
+        toast({ title: "Favorito removido", description: "Eliminado de MongoDB Atlas." });
+      } else {
+        const articulo: Articulo = {
+          id: doc.id,
+          titulo: doc.title,
+          autores: [],
+          resumen: doc.description,
+          anio: parseInt(doc.date.split("-")[0]) || new Date().getFullYear(),
+          revista: "",
+          doi: doc.size.replace("DOI: ", ""),
+          origen: doc.faculty
+        };
+        await bibliometriaService.agregarFavorito(userId, articulo);
+        setFavorites(prev => [...prev, doc.id]);
+        toast({ title: "Favorito agregado", description: "Guardado en MongoDB Atlas." });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo actualizar el favorito.", variant: "destructive" });
+    }
+  }, [favorites, toast]);
 
   const handleToggleSelect = (id: string) => {
     setSelectedIds(prev => 
@@ -162,57 +206,76 @@ const SearchPage = () => {
     navigate("/similarity", { state: { articles: selectedArticles } });
   };
 
+  const goToAgrupamiento = () => {
+    const selectedArticles = documents.filter(d => selectedIds.includes(d.id));
+    navigate("/agrupamiento", { state: { articles: selectedArticles } });
+  };
+
   const handleDownloadCsvClick = () => {
     window.open("http://localhost:8080/api/bibliometria/exportar/unificados", "_blank");
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Gestión Bibliométrica</h2>
-          <p className="text-muted-foreground text-sm">Analice la similitud de los abstracts de arXiv y Semantic Scholar</p>
-        </div>
-        <div className="flex gap-2">
-          {selectedIds.length >= 1 && (
-            <Button 
-              onClick={goToSimilarity}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
-            >
-              Analizar Similitud ({selectedIds.length})
-            </Button>
-          )}
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+      
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-2xl p-8 border border-primary/10">
+        <h1 className="text-3xl font-extrabold text-foreground mb-2 tracking-tight">Gestor Bibliométrico Profesional</h1>
+        <p className="text-muted-foreground text-lg max-w-2xl mb-6">
+          Busca, unifica y analiza literatura científica desde arXiv y Semantic Scholar de forma automática.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button 
+            onClick={handleAutoExtractClick} 
+            disabled={isExtracting}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-medium shadow-sm transition-all"
+          >
+            <Download className={`w-4 h-4 ${isExtracting ? 'animate-bounce' : ''}`} />
+            {isExtracting ? 'Extrayendo datos...' : 'Extraer Nuevos Artículos (APIs)'}
+          </Button>
+          <Button 
+            onClick={() => window.open("http://localhost:8080/api/bibliometria/exportar/unificados", "_blank")}
+            variant="outline"
+            className="gap-2 bg-background/50 backdrop-blur-sm hover:bg-background"
+          >
+            <Download className="w-4 h-4" />
+            Descargar Base Unificada (CSV)
+          </Button>
           <Button 
             onClick={() => window.open("http://localhost:8080/api/bibliometria/exportar/eliminados", "_blank")}
             variant="ghost"
             className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
             title="Lista de artículos filtrados (duplicados)"
           >
-            <Download className="w-4 h-4" />
-            Duplicados
-          </Button>
-          <Button 
-            onClick={() => window.open("http://localhost:8080/api/bibliometria/exportar/unificados", "_blank")}
-            variant="outline"
-            className="gap-2"
-          >
-            <Download className="w-4 h-4" />
-            Base Unificada
-          </Button>
-          <Button 
-            onClick={handleAutoExtractClick} 
-            disabled={isExtracting}
-            className="bg-green-600 hover:bg-green-700 text-white gap-2"
-          >
-            <Download className={`w-4 h-4 ${isExtracting ? 'animate-bounce' : ''}`} />
-            {isExtracting ? 'Descargando...' : 'Extraer de APIs'}
+            Ver Duplicados
           </Button>
         </div>
       </div>
-      
-      <div className="mt-4">
-        <DocumentSearch onSearch={handleSearch} />
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex-1 w-full">
+          <DocumentSearch onSearch={handleSearch} initialQuery={initialQuery} />
+        </div>
+        
+        {/* Acciones de Selección */}
+        {selectedIds.length >= 1 && (
+          <div className="flex gap-2 w-full md:w-auto shrink-0 animate-in slide-in-from-right-2">
+            <Button 
+              onClick={goToSimilarity}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 flex-1 md:flex-none shadow-sm h-12 px-6 font-semibold"
+            >
+              Analizar Similitud ({selectedIds.length})
+            </Button>
+            <Button 
+              onClick={goToAgrupamiento}
+              className="bg-purple-600 hover:bg-purple-700 text-white gap-2 flex-1 md:flex-none shadow-sm h-12 px-6 font-semibold"
+            >
+              Agrupar Selección ({selectedIds.length})
+            </Button>
+          </div>
+        )}
       </div>
+
 
       <DocumentTable
         documents={documents}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, BarChart3, Lightbulb, Target, TrendingUp, Sparkles } from "lucide-react";
 import { bibliometriaService, PalabraFrecuencia, PalabraDescubierta, ResultadoMineria } from "@/lib/bibliometriaService";
+import { getUser } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
@@ -28,7 +29,11 @@ const COLORS_NEW = [
 
 const MineriaPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  
+  const doc = location.state?.doc;
 
   const [loading, setLoading] = useState(true);
   const [resultado, setResultado] = useState<ResultadoMineria | null>(null);
@@ -37,7 +42,16 @@ const MineriaPage = () => {
     const cargar = async () => {
       setLoading(true);
       try {
-        const data = await bibliometriaService.obtenerMineriaTextos();
+        if (!id) {
+          toast({
+            title: "Error",
+            description: "No se proporcionó un ID de documento.",
+            variant: "destructive",
+          });
+          return;
+        }
+        const userId = getUser() || "anonymous";
+        const data = await bibliometriaService.obtenerMineriaDocumento(id, userId);
         setResultado(data);
       } catch (error) {
         toast({
@@ -50,7 +64,7 @@ const MineriaPage = () => {
       }
     };
     cargar();
-  }, [toast]);
+  }, [id, toast]);
 
   const chartDataBase = resultado?.palabrasBase
     .filter(p => p.frecuencia > 0)
@@ -86,18 +100,31 @@ const MineriaPage = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
             <BarChart3 className="w-8 h-8 text-primary" />
-            Minería de Textos
+            Minería de Textos del Documento
           </h1>
           <p className="text-muted-foreground">
-            Requerimiento 3 — Frecuencias de la categoría <span className="font-semibold text-foreground">"Concepts of Generative AI in Education"</span>
+            Frecuencias para el documento ID: <span className="font-semibold text-foreground">{id}</span>
           </p>
         </div>
       </div>
 
+      {doc && (
+        <Card className="bg-primary/5 border-l-4 border-l-primary shadow-sm">
+          <CardHeader className="py-3 pb-2">
+            <CardTitle className="text-lg leading-tight">{doc.title}</CardTitle>
+          </CardHeader>
+          <CardContent className="pb-3 pt-0">
+            <p className="text-sm text-muted-foreground italic leading-relaxed text-justify line-clamp-4 hover:line-clamp-none transition-all duration-300 cursor-pointer" title="Haz clic para expandir o contraer">
+              "{doc.description}"
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {loading ? (
         <div className="flex flex-col items-center justify-center p-20 space-y-4 border rounded-xl border-dashed">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p className="font-medium">Analizando todos los abstracts de la base de datos...</p>
+          <p className="font-medium">Analizando el documento...</p>
         </div>
       ) : (
         <Tabs defaultValue="base" className="w-full">
@@ -122,8 +149,8 @@ const MineriaPage = () => {
                   Frecuencia de las 15 Palabras Predefinidas
                 </CardTitle>
                 <CardDescription>
-                  Se recorrieron todos los abstracts buscando exactamente las palabras de la tabla del requerimiento.
-                  La barra muestra cuántas veces aparece cada término en toda la base de datos unificada.
+                  Se analizó el abstract buscando exactamente las palabras de la tabla del requerimiento.
+                  La barra muestra cuántas veces aparece cada término en este documento específico.
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[420px]">
@@ -192,10 +219,10 @@ const MineriaPage = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <Sparkles className="w-6 h-6 text-emerald-500" />
-                  15 Nuevas Palabras Descubiertas por el Algoritmo
+                  Nuevas Palabras Descubiertas en el Documento
                 </CardTitle>
                 <CardDescription>
-                  El motor de NLP analizó todos los abstracts, eliminó ruido (stopwords, preposiciones) y extrajo
+                  El motor de NLP analizó el abstract, eliminó ruido (stopwords, preposiciones) y extrajo
                   los términos más frecuentes que <strong>no</strong> estaban en el diccionario original.
                   Estas son las palabras que el algoritmo considera relevantes para el dominio "Generative AI".
                 </CardDescription>

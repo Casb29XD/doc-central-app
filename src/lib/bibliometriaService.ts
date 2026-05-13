@@ -1,8 +1,7 @@
 /**
  * Servicio para comunicarse con el backend de Spring Boot
  */
-
-const API_BASE_URL = "http://localhost:8080/api/bibliometria";
+const API_BASE_URL = "/api/bibliometria";
 
 export interface Articulo {
   id?: string;
@@ -43,6 +42,38 @@ export interface ResultadoMineria {
 export interface AlgoritmoInfo {
   nombre: string;
   explicacion: string;
+}
+
+export interface MapaData {
+  id: string;
+  name: string;
+  value: number;
+}
+
+export interface LineaTemporalData {
+  anio: string;
+  revistas: { [key: string]: number };
+}
+
+export interface VisualizacionResponse {
+  mapaCalor: MapaData[];
+  nubePalabras: PalabraFrecuencia[];
+  lineaTemporal: LineaTemporalData[];
+}
+
+export interface ClusterNode {
+  id: string | null;
+  label: string | null;
+  left: ClusterNode | null;
+  right: ClusterNode | null;
+  distance: number;
+  size: number;
+}
+
+export interface ComparacionMetodo {
+  metodo: string;
+  score: number;
+  descripcion: string;
 }
 
 export const bibliometriaService = {
@@ -111,6 +142,47 @@ export const bibliometriaService = {
     return res.json();
   },
 
+  async obtenerMineriaDocumento(id: string, usuarioId: string = "anonymous"): Promise<ResultadoMineria> {
+    const res = await fetch(`${API_BASE_URL}/mineria/frecuencias/${encodeURIComponent(id)}`, {
+      headers: { "X-User-Id": usuarioId }
+    });
+    if (!res.ok) throw new Error("Error obteniendo resultados de minería del documento");
+    return res.json();
+  },
+
+  async obtenerAgrupamiento(linkage: string = "average", limit: number = 50): Promise<ClusterNode> {
+    const res = await fetch(`${API_BASE_URL}/agrupamiento?linkage=${linkage}&limit=${limit}`);
+    if (!res.ok) throw new Error("Error obteniendo el agrupamiento jerárquico");
+    if (res.status === 204) throw new Error("No hay suficientes artículos para agrupar");
+    return res.json();
+  },
+
+  async obtenerAgrupamientoPorIds(ids: string[], linkage: string = "average", metric: string = "Coseno"): Promise<ClusterNode> {
+    const res = await fetch(`${API_BASE_URL}/agrupamiento`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids, linkage, metric })
+    });
+    if (!res.ok) throw new Error("Error obteniendo el agrupamiento jerárquico");
+    if (res.status === 204) throw new Error("No hay suficientes artículos para agrupar");
+    return res.json();
+  },
+
+  async obtenerComparacionAgrupamiento(ids: string[], metric: string = "Coseno"): Promise<ComparacionMetodo[]> {
+    const res = await fetch(`${API_BASE_URL}/agrupamiento/comparar`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids, metric })
+    });
+    if (!res.ok) throw new Error("Error comparando métodos de agrupamiento");
+    if (res.status === 204) throw new Error("No hay suficientes artículos para comparar");
+    return res.json();
+  },
+
   /**
    * Obtiene la información de los algoritmos de similitud disponibles
    */
@@ -125,5 +197,55 @@ export const bibliometriaService = {
       console.error("Error al obtener algoritmos:", error);
       throw error;
     }
+  },
+
+  async obtenerDatosVisualizacion(): Promise<VisualizacionResponse> {
+    const res = await fetch(`${API_BASE_URL}/visualizacion`);
+    if (!res.ok) throw new Error("Error obteniendo los datos de visualización");
+    return res.json();
+  },
+
+  async listarFavoritos(usuarioId: string): Promise<any[]> {
+    const res = await fetch(`${API_BASE_URL}/favoritos`, {
+      headers: { "X-User-Id": usuarioId }
+    });
+    if (!res.ok) throw new Error("Error al obtener favoritos");
+    return res.json();
+  },
+
+  async agregarFavorito(usuarioId: string, articulo: Articulo): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/favoritos`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "X-User-Id": usuarioId 
+      },
+      body: JSON.stringify(articulo)
+    });
+    if (!res.ok) throw new Error("Error al agregar favorito");
+  },
+
+  async quitarFavorito(usuarioId: string, articuloId: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/favoritos/${encodeURIComponent(articuloId)}`, {
+      method: "DELETE",
+      headers: { "X-User-Id": usuarioId }
+    });
+    if (!res.ok) throw new Error("Error al quitar favorito");
+  },
+
+  async listarHistorial(usuarioId: string): Promise<any[]> {
+    const res = await fetch(`${API_BASE_URL}/historial`, {
+      headers: { "X-User-Id": usuarioId }
+    });
+    if (!res.ok) throw new Error("Error al obtener historial");
+    return res.json();
+  },
+
+  async agregarHistorial(usuarioId: string, query: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/historial?query=${encodeURIComponent(query)}`, {
+      method: "POST",
+      headers: { "X-User-Id": usuarioId }
+    });
+    if (!res.ok) throw new Error("Error al guardar historial");
   }
 };
